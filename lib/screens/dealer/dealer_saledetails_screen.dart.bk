@@ -1,0 +1,517 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../utils/formatters.dart';
+import '../../widgets/dashboard_layout.dart';
+import '../../widgets/glass_container.dart';
+import '../../widgets/animated_background.dart';
+import '../../services/api_service.dart';
+import 'dealer_sales_comparison_screen.dart';
+import 'menu_navigator.dart';
+
+class DealerSalesdetailsScreen extends StatefulWidget {
+  final String title; // dealerName
+  final Function(int)? onMenuSelected;
+
+  DealerSalesdetailsScreen({required this.title, this.onMenuSelected});
+
+  @override
+  _DealerSalesdetailsScreenState createState() => _DealerSalesdetailsScreenState();
+}
+
+class _DealerSalesdetailsScreenState extends State<DealerSalesdetailsScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _slideAnimation;
+  int selectedMenuIndex = 0;
+  bool _isGridView = false; // Default to list view
+
+  List<Map<String, dynamic>> _menuItems = [];
+  bool _loading = true;
+  String _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: Duration(milliseconds: 800), // Match other screens timing
+      vsync: this,
+    );
+    _slideAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
+    );
+    _animationController.forward();
+
+    _fetchMenuItems();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _onMenuSelected(int index) {
+    setState(() => selectedMenuIndex = index);
+    MenuNavigator.handleMenuSelection(context, index);
+  }
+
+  Future<void> _fetchMenuItems() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? executive = prefs.getString('username');
+
+      Map<String, dynamic> payload = {
+        "sqlKey": "BRAND_LIST_BY_EXECUTIVE_AND_DEALER",
+        "executive": executive,
+        "dealername": widget.title,
+      };
+
+      ApiService apiService = ApiService();
+      final response = await apiService.request(payload: payload);
+
+      if (response.isSuccess && response.data != null) {
+        final List<Map<String, dynamic>> fetchedItems =
+        List<Map<String, dynamic>>.from(response.data!).map((item) {
+          return {
+            "title": item["Brand"] ?? "",
+            "amount": item["Amount"] ?? 0.0,
+            "icon": (item["icon"].trim()).replaceAll(RegExp(r'\s+'), ''),
+            "color": _getColorFromString(item["color"] ?? "blue"),
+          };
+        }).toList();
+
+        setState(() {
+          _menuItems = fetchedItems;
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = response.error ?? "Failed to fetch brands";
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Color _getColorFromString(String colorName) {
+    switch (colorName.toLowerCase()) {
+      case "red":
+        return Colors.red;
+      case "blue":
+        return Colors.blue;
+      case "green":
+        return Colors.green;
+      case "orange":
+        return Colors.orange;
+      case "purple":
+        return Colors.purple;
+      case "teal":
+        return Colors.teal;
+      default:
+        return Colors.blueGrey;
+    }
+  }
+
+  // Helper method to get contrasting background color for icons
+  Color _getIconBackgroundColor(Color brandColor) {
+    // Calculate luminance to determine if brand color is light or dark
+    double luminance = (0.299 * brandColor.red + 0.587 * brandColor.green + 0.114 * brandColor.blue) / 255;
+
+    // Return white for dark colors, dark for light colors to ensure maximum contrast
+    if (luminance < 0.5) {
+      return Colors.white; // White background for dark brand colors
+    } else {
+      return Colors.grey[800]!; // Dark background for light brand colors
+    }
+  }
+
+  // Helper method to get contrasting border color for icons
+  Color _getIconBorderColor(Color brandColor) {
+    double luminance = (0.299 * brandColor.red + 0.587 * brandColor.green + 0.114 * brandColor.blue) / 255;
+
+    // Use the brand color itself for border, but ensure it contrasts with background
+    if (luminance < 0.5) {
+      return brandColor; // Brand color border on white background
+    } else {
+      return brandColor; // Brand color border on dark background
+    }
+  }
+
+  Widget _buildIcon(String? iconData) {
+    if (iconData == null || iconData.isEmpty) {
+      return Icon(Icons.image_not_supported, size: 24, color: Colors.grey);
+    }
+
+    try {
+      final bytes = base64Decode(iconData);
+      return Image.memory(bytes, fit: BoxFit.contain, width: 40, height: 40);
+    } catch (e) {
+      return Icon(Icons.broken_image, size: 24, color: Colors.red);
+    }
+  }
+
+  // Calculate total sales
+  double _calculateTotalSales() {
+    if (_menuItems.isEmpty) return 0.0;
+    return _menuItems.fold(0.0, (total, item) => total + (item["amount"] ?? 0.0));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: DashboardLayout(
+        title: "Sales Details",
+        subtitle: widget.title, // Dealer name as subtitle
+        showBackButton: true,
+        onTabSelected: _onMenuSelected,
+        body: SafeArea(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _errorMessage.isNotEmpty
+                ? Center(
+                child: Text(_errorMessage, style: TextStyle(color: Colors.red)))
+                : AnimatedBuilder(
+              animation: _slideAnimation,
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(0, 50 * (1 - _slideAnimation.value)),
+                  child: Opacity(
+                    opacity: _slideAnimation.value,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // View toggle button
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _isGridView = false;
+                                        });
+                                        HapticFeedback.lightImpact();
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: !_isGridView
+                                              ? Colors.blueAccent.withOpacity(0.8)
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Icon(
+                                          Icons.view_list,
+                                          color: !_isGridView ? Colors.white : Colors.white60,
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _isGridView = true;
+                                        });
+                                        HapticFeedback.lightImpact();
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: _isGridView
+                                              ? Colors.blueAccent.withOpacity(0.8)
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Icon(
+                                          Icons.grid_view,
+                                          color: _isGridView ? Colors.white : Colors.white60,
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Dynamic content based on view type
+                          _isGridView
+                              ? _buildGridView()
+                              : _buildListView(),
+
+                          const SizedBox(height: 80), // Bottom padding for total bar
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+      ),
+      // App bottom navigation bar with total sales
+      bottomNavigationBar: Container(
+        margin: EdgeInsets.all(8),
+        child: _buildCompactTotalSalesBar(),
+      ),
+    );
+  }
+
+  // Grid view layout
+  Widget _buildGridView() {
+    int crossAxisCount = MediaQuery.of(context).orientation == Orientation.portrait ? 2 : 4;
+
+    return GridView.count(
+      crossAxisCount: crossAxisCount,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      childAspectRatio: 0.9,
+      children: _menuItems.map((item) {
+        return _buildGridCard(item);
+      }).toList(),
+    );
+  }
+
+  // Grid card
+  Widget _buildGridCard(Map<String, dynamic> item) {
+    return GestureDetector(
+      onTap: () => _navigateToBrandDetails(item),
+      child: GlassContainer(
+        child: Container(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: _getIconBackgroundColor(item["color"]),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: _getIconBorderColor(item["color"]),
+                      width: 2
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: item["color"].withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(child: _buildIcon(item["icon"])),
+              ),
+              SizedBox(height: 12),
+              Text(
+                item["title"],
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: 4),
+              Text(
+                Formatters.formatCurrency(item["amount"].abs()),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white70,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // List view layout
+  Widget _buildListView() {
+    return Column(
+      children: _menuItems.map((item) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: _buildListCard(item),
+        );
+      }).toList(),
+    );
+  }
+
+  // List card
+  Widget _buildListCard(Map<String, dynamic> item) {
+    return GestureDetector(
+      onTap: () => _navigateToBrandDetails(item),
+      child: GlassContainer(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              // Icon container
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: _getIconBackgroundColor(item["color"]),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: _getIconBorderColor(item["color"]),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: item["color"].withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(child: _buildIcon(item["icon"])),
+              ),
+
+              const SizedBox(width: 20),
+
+              // Content section
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Brand name with colored container
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: item["color"].withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        item["title"],
+                        style: TextStyle(
+                          color: item["color"],
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Sales amount
+                    Text(
+                      "Sales: ${Formatters.formatCurrency(item["amount"].abs())}",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Arrow indicator
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: item["color"].withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.arrow_forward_ios,
+                  color: item["color"],
+                  size: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Navigation method
+  void _navigateToBrandDetails(Map<String, dynamic> item) {
+    HapticFeedback.lightImpact();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DealerSalesComparisonScreen(
+          title: widget.title,
+          amount: item["amount"],
+          color: item["color"],
+          dealername: widget.title,
+          base64Icon: item["icon"],
+          brand: item["title"],
+        ),
+      ),
+    );
+  }
+
+  // Compact total sales bar for bottom navigation area
+  Widget _buildCompactTotalSalesBar() {
+    double totalSales = _calculateTotalSales();
+
+    return GlassContainer(
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.trending_up,
+              color: Theme.of(context).primaryColor,
+              size: 18,
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Total Sales: ',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              _loading
+                  ? '...'
+                  : (totalSales > 0 ? Formatters.formatCurrency(totalSales) : '₹0'),
+              style: TextStyle(
+                color: Colors.green,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
