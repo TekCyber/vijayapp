@@ -1,4 +1,4 @@
-// lib/views/dealer_dashboard_screen.dart
+// lib/views/dealer_dashboard_screen.dart - THEME-AWARE VERSION
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -10,6 +10,7 @@ import '../../services/api_service.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/dashboard_layout.dart';
 import '../../widgets/glass_container.dart';
+import '../../theme/theme_helpers.dart';
 import 'menu_navigator.dart';
 
 
@@ -33,29 +34,8 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
   String? _name = "Salesman";
   int selectedMenuIndex = 0;
 
-  // Predefined 20 bright colors (top to bottom order)
-  final List<Color> _predefinedColors = [
-    Color(0xFF4F46E5), // Bright Indigo
-    Color(0xFFEC4899), // Bright Pink
-    Color(0xFF10B981), // Bright Green
-    Color(0xFFFF6B35), // Bright Orange
-    Color(0xFF8B5CF6), // Bright Purple
-    Color(0xFF06B6D4), // Bright Cyan
-    Color(0xFFEF4444), // Bright Red
-    Color(0xFFF59E0B), // Bright Amber
-    Color(0xFF3B82F6), // Bright Blue
-    Color(0xFF84CC16), // Bright Lime
-    Color(0xFFF97316), // Bright Orange Red
-    Color(0xFF14B8A6), // Bright Teal
-    Color(0xFFD946EF), // Bright Magenta
-    Color(0xFF22C55E), // Bright Green Light
-    Color(0xFF6366F1), // Bright Indigo Light
-    Color(0xFFFF4081), // Bright Pink Accent
-    Color(0xFF00E676), // Bright Green Accent
-    Color(0xFFFF9100), // Bright Orange Accent
-    Color(0xFF651FFF), // Bright Deep Purple
-    Color(0xFF00BCD4), // Bright Cyan Accent
-  ];
+  // Predefined 20 bright colors (top to bottom order) - kept as semantic colors
+  final List<Color> _predefinedColors = ThemeHelper.chartColors;
 
   List<OutstandingBill> outstandingBills = [];
   bool _isLoadingOutstanding = true;
@@ -77,6 +57,7 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
     String formattedDate = Formatters.formatDate(yesterday);
     return 'Sales by Brand - $formattedDate';
   }
+
   Future<void> _loadUsername() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? username = prefs.getString('username');
@@ -89,6 +70,7 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
       });
     }
   }
+
   Future<void> _fetchYesterdayData() async {
     try {
       setState(() {
@@ -96,7 +78,6 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
         _errorMessageYesterday = '';
       });
 
-      // Get username from SharedPreferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? username = prefs.getString('username');
 
@@ -104,26 +85,22 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
         throw Exception('Username not found in SharedPreferences');
       }
 
-      // Prepare API request payload
       Map<String, dynamic> payload = {
         "sqlKey": "HBAR_CHART_BY_EXECUTIVE_BY_YD",
         "executive": username,
       };
 
-      // Make API call
       ApiService apiService = ApiService();
       final response = await apiService.request(payload: payload);
 
       if (response.isSuccess && response.data != null) {
         List<SalesData> fetchedData = [];
 
-        // Convert API response to SalesData objects with predefined colors
         for (int i = 0; i < response.data!.length; i++) {
           final item = response.data![i];
           final brand = item['Brand']?.toString() ?? 'Unknown';
           final amount = double.tryParse(item['Amount']?.toString() ?? '0') ?? 0.0;
 
-          // Use predefined colors in order, cycling if more brands than colors
           final colorIndex = i % _predefinedColors.length;
           final color = _predefinedColors[colorIndex];
 
@@ -153,7 +130,6 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
         _errorMessageMonthly = '';
       });
 
-      // Get username from SharedPreferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? username = prefs.getString('username');
 
@@ -161,32 +137,27 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
         throw Exception('Username not found in SharedPreferences');
       }
 
-      // Prepare API request payload
       Map<String, dynamic> payload = {
         "sqlKey": "PIE_CHART_BY_EXECUTIVE_BY_CM_NEW",
         "executive": username,
       };
 
-      // Make API call
       ApiService apiService = ApiService();
       final response = await apiService.request(payload: payload);
 
       if (response.isSuccess && response.data != null) {
         List<MonthlyData> fetchedData = [];
 
-        // Calculate total amount for percentage calculation
         double totalAmount = response.data!.fold(0.0, (sum, item) {
           return sum + (double.tryParse(item['Amount']?.toString() ?? '0') ?? 0.0);
         });
 
-        // Convert API response to MonthlyData objects with predefined colors
         for (int i = 0; i < response.data!.length; i++) {
           final item = response.data![i];
           final brand = item['Brand']?.toString() ?? 'Unknown';
           final amount = double.tryParse(item['Amount']?.toString() ?? '0') ?? 0.0;
           final percentage = totalAmount > 0 ? (amount / totalAmount) * 100 : 0.0;
 
-          // Use predefined colors in order, cycling if more brands than colors
           final colorIndex = i % _predefinedColors.length;
           final color = _predefinedColors[colorIndex];
 
@@ -215,7 +186,6 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
         _isLoadingDealerCount = true;
       });
 
-      // Get username from SharedPreferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? username = prefs.getString('username');
 
@@ -223,13 +193,11 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
         throw Exception('Username not found in SharedPreferences');
       }
 
-      // Prepare API request payload
       Map<String, dynamic> payload = {
         "sqlKey": "GET_DEALER_COUNT_YD",
         "executive": username,
       };
 
-      // Make API call
       ApiService apiService = ApiService();
       final response = await apiService.request(payload: payload);
 
@@ -247,7 +215,7 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
     } catch (e) {
       setState(() {
         _isLoadingDealerCount = false;
-        _dealerCount = 0; // Fallback to 0 on error
+        _dealerCount = 0;
       });
       print('Error fetching dealer count: $e');
     }
@@ -259,7 +227,6 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
         _isLoadingMonthlyDealerCount = true;
       });
 
-      // Get username from SharedPreferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? username = prefs.getString('username');
 
@@ -267,13 +234,11 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
         throw Exception('Username not found in SharedPreferences');
       }
 
-      // Prepare API request payload
       Map<String, dynamic> payload = {
         "sqlKey": "GET_DEALER_COUNT",
         "executive": username,
       };
 
-      // Make API call
       ApiService apiService = ApiService();
       final response = await apiService.request(payload: payload);
 
@@ -291,7 +256,7 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
     } catch (e) {
       setState(() {
         _isLoadingMonthlyDealerCount = false;
-        _monthlydealerCount = 0; // Fallback to 0 on error
+        _monthlydealerCount = 0;
       });
       print('Error fetching Monthly dealer count: $e');
     }
@@ -304,7 +269,6 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
         _errorMessageOutstanding = '';
       });
 
-      // Get username from SharedPreferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? username = prefs.getString('username');
 
@@ -312,20 +276,17 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
         throw Exception('Username not found in SharedPreferences');
       }
 
-      // Prepare API request payload
       Map<String, dynamic> payload = {
         "sqlKey": "GET_AGING_BY_EXECUTIVE",
         "executive": username,
       };
 
-      // Make API call
       ApiService apiService = ApiService();
       final response = await apiService.request(payload: payload);
 
       if (response.isSuccess && response.data != null) {
         List<OutstandingBill> fetchedData = [];
 
-        // Convert API response to OutstandingBill objects
         for (final item in response.data!) {
           fetchedData.add(OutstandingBill.fromJson(item));
         }
@@ -346,7 +307,6 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
     }
   }
 
-  // Refresh data methods
   Future<void> _refreshData() async {
     await Future.wait([
       _fetchYesterdayData(),
@@ -356,11 +316,12 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
       _fetchOutstandingBills(),
     ]);
   }
-  // Centralized menu navigation
+
   void _onMenuSelected(int index) {
     setState(() => selectedMenuIndex = index);
     MenuNavigator.handleMenuSelection(context, index);
   }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -378,21 +339,21 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
               children: [
                 Text(
                   'Sales Summary',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white),
+                  style: ThemeHelper.headerStyle(context),
                 ),
                 SizedBox(height: 16),
                 _buildYesterdayChart(),
                 SizedBox(height: 32),
                 Text(
                   'Monthly Sales Summary',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white),
+                  style: ThemeHelper.headerStyle(context),
                 ),
                 SizedBox(height: 16),
                 _buildMonthlyPieChart(),
                 SizedBox(height: 32),
                 Text(
                   'Outstanding Bills',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white),
+                  style: ThemeHelper.headerStyle(context),
                 ),
                 SizedBox(height: 16),
                 _buildOutstandingBills(),
@@ -401,8 +362,6 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
             ),
           ),
         ),
-
-
       ],
     );
   }
@@ -419,32 +378,21 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
               children: [
                 Text(
                   _generateTitleWithYesterday(),
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
+                  style: ThemeHelper.titleStyle(context),
                 ),
-
               ],
             ),
             SizedBox(height: 8),
             if (!_isLoadingYesterday && yesterdayData.isNotEmpty)
               Text(
-                'Dealers: ${_dealerCount}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white60,
-                ),
+                'Dealers: $_dealerCount',
+                style: ThemeHelper.captionStyle(context),
               ),
 
             if (!_isLoadingYesterday && yesterdayData.isNotEmpty)
               Text(
                 'Total: ${Formatters.formatCurrency(yesterdayData.fold(0.0, (sum, item) => sum + item.amount))}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white60,
-                ),
+                style: ThemeHelper.captionStyle(context),
               ),
             SizedBox(height: 24),
             _buildYesterdayChartContent(),
@@ -463,16 +411,13 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(
-                color: Colors.white,
+                color: ThemeHelper.loadingColor(context),
                 strokeWidth: 2,
               ),
               SizedBox(height: 16),
               Text(
                 'Loading sales data...',
-                style: TextStyle(
-                  color: Colors.white60,
-                  fontSize: 14,
-                ),
+                style: ThemeHelper.captionStyle(context),
               ),
             ],
           ),
@@ -489,14 +434,14 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
             children: [
               Icon(
                 Icons.error_outline,
-                color: Colors.red,
+                color: ThemeHelper.errorColor,
                 size: 48,
               ),
               SizedBox(height: 16),
               Text(
                 _errorMessageYesterday,
                 style: TextStyle(
-                  color: Colors.red,
+                  color: ThemeHelper.errorColor,
                   fontSize: 14,
                 ),
                 textAlign: TextAlign.center,
@@ -505,11 +450,11 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
               ElevatedButton(
                 onPressed: _fetchYesterdayData,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.2),
+                  backgroundColor: ThemeHelper.glassBackground(context),
                 ),
                 child: Text(
                   'Retry',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: ThemeHelper.textColor(context)),
                 ),
               ),
             ],
@@ -527,15 +472,14 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
             children: [
               Icon(
                 Icons.inbox_outlined,
-                color: Colors.white60,
+                color: ThemeHelper.subtleTextColor(context),
                 size: 48,
               ),
               SizedBox(height: 16),
               Text(
                 'No sales data available',
-                style: TextStyle(
-                  color: Colors.white60,
-                  fontSize: 16,
+                style: ThemeHelper.subtitleStyle(context).copyWith(
+                  color: ThemeHelper.subtleTextColor(context),
                 ),
               ),
             ],
@@ -544,7 +488,6 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
       );
     }
 
-    // Find max amount for percentage calculation
     double maxAmount = yesterdayData.map((e) => e.amount.abs()).reduce(max);
 
     return Column(
@@ -568,25 +511,17 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
                 children: [
                   Text(
                     data.period,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: ThemeHelper.subtitleStyle(context),
                   ),
                   if (isNegative)
                     Container(
                       margin: EdgeInsets.only(left: 8),
                       padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.withOpacity(0.4)),
-                      ),
+                      decoration: ThemeHelper.smallBadgeDecoration(ThemeHelper.errorColor),
                       child: Text(
                         'NEG',
                         style: TextStyle(
-                          color: Colors.red,
+                          color: ThemeHelper.errorColor,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
@@ -597,7 +532,7 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
               Text(
                 Formatters.formatCurrency(data.amount.abs()),
                 style: TextStyle(
-                  color: isNegative ? Colors.red : Colors.white,
+                  color: isNegative ? ThemeHelper.errorColor : ThemeHelper.textColor(context),
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
@@ -608,7 +543,7 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
           Container(
             height: 8,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: ThemeHelper.glassBackground(context),
               borderRadius: BorderRadius.circular(4),
             ),
             child: FractionallySizedBox(
@@ -617,13 +552,13 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: isNegative
-                        ? [Colors.red, Colors.red.withOpacity(0.7)]
+                        ? [ThemeHelper.errorColor, ThemeHelper.errorColor.withOpacity(0.7)]
                         : [data.color, data.color.withOpacity(0.7)],
                   ),
                   borderRadius: BorderRadius.circular(4),
                   boxShadow: [
                     BoxShadow(
-                      color: (isNegative ? Colors.red : data.color).withOpacity(0.3),
+                      color: (isNegative ? ThemeHelper.errorColor : data.color).withOpacity(0.3),
                       blurRadius: 8,
                       spreadRadius: 1,
                     ),
@@ -649,30 +584,20 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
               children: [
                 Text(
                   'Sales by Brand',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
+                  style: ThemeHelper.titleStyle(context),
                 ),
                 if (!_isLoadingMonthly && monthlyData.isNotEmpty)
                   Text(
                     'Total: ${Formatters.formatCurrency(monthlyData.fold(0.0, (sum, item) => sum + item.value))}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white60,
-                    ),
+                    style: ThemeHelper.captionStyle(context),
                   ),
               ],
             ),
             SizedBox(height: 8),
             if (!_isLoadingMonthly && monthlyData.isNotEmpty)
               Text(
-                'Dealers: ${_monthlydealerCount}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white60,
-                ),
+                'Dealers: $_monthlydealerCount',
+                style: ThemeHelper.captionStyle(context),
               ),
             SizedBox(height: 24),
             _buildMonthlyChartContent(),
@@ -681,7 +606,6 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
       ),
     );
   }
-
 
   Widget _buildMonthlyChartContent() {
     if (_isLoadingMonthly) {
@@ -692,16 +616,13 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(
-                color: Colors.white,
+                color: ThemeHelper.loadingColor(context),
                 strokeWidth: 2,
               ),
               SizedBox(height: 16),
               Text(
                 'Loading monthly data...',
-                style: TextStyle(
-                  color: Colors.white60,
-                  fontSize: 14,
-                ),
+                style: ThemeHelper.captionStyle(context),
               ),
             ],
           ),
@@ -718,14 +639,14 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
             children: [
               Icon(
                 Icons.error_outline,
-                color: Colors.red,
+                color: ThemeHelper.errorColor,
                 size: 48,
               ),
               SizedBox(height: 16),
               Text(
                 _errorMessageMonthly,
                 style: TextStyle(
-                  color: Colors.red,
+                  color: ThemeHelper.errorColor,
                   fontSize: 14,
                 ),
                 textAlign: TextAlign.center,
@@ -734,11 +655,11 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
               ElevatedButton(
                 onPressed: _fetchMonthlyData,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.2),
+                  backgroundColor: ThemeHelper.glassBackground(context),
                 ),
                 child: Text(
                   'Retry',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: ThemeHelper.textColor(context)),
                 ),
               ),
             ],
@@ -756,15 +677,14 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
             children: [
               Icon(
                 Icons.inbox_outlined,
-                color: Colors.white60,
+                color: ThemeHelper.subtleTextColor(context),
                 size: 48,
               ),
               SizedBox(height: 16),
               Text(
                 'No monthly data available',
-                style: TextStyle(
-                  color: Colors.white60,
-                  fontSize: 16,
+                style: ThemeHelper.subtitleStyle(context).copyWith(
+                  color: ThemeHelper.subtleTextColor(context),
                 ),
               ),
             ],
@@ -824,18 +744,11 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
               children: [
                 Text(
                   data.category,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: ThemeHelper.bodyStyle(context),
                 ),
                 Text(
                   '${Formatters.formatCurrency(data.value)} (${data.percentage.toStringAsFixed(1)}%)',
-                  style: TextStyle(
-                    color: Colors.white60,
-                    fontSize: 12,
-                  ),
+                  style: ThemeHelper.captionStyle(context),
                 ),
               ],
             ),
@@ -855,16 +768,13 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 CircularProgressIndicator(
-                  color: Colors.white,
+                  color: ThemeHelper.loadingColor(context),
                   strokeWidth: 2,
                 ),
                 SizedBox(height: 16),
                 Text(
                   'Loading outstanding bills...',
-                  style: TextStyle(
-                    color: Colors.white60,
-                    fontSize: 14,
-                  ),
+                  style: ThemeHelper.captionStyle(context),
                 ),
               ],
             ),
@@ -884,14 +794,14 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
               children: [
                 Icon(
                   Icons.error_outline,
-                  color: Colors.red,
+                  color: ThemeHelper.errorColor,
                   size: 48,
                 ),
                 SizedBox(height: 16),
                 Text(
                   _errorMessageOutstanding,
                   style: TextStyle(
-                    color: Colors.red,
+                    color: ThemeHelper.errorColor,
                     fontSize: 14,
                   ),
                   textAlign: TextAlign.center,
@@ -900,11 +810,11 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
                 ElevatedButton(
                   onPressed: _fetchOutstandingBills,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.2),
+                    backgroundColor: ThemeHelper.glassBackground(context),
                   ),
                   child: Text(
                     'Retry',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: ThemeHelper.textColor(context)),
                   ),
                 ),
               ],
@@ -925,24 +835,17 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
               children: [
                 Icon(
                   Icons.check_circle_outline,
-                  color: Colors.green,
+                  color: ThemeHelper.successColor,
                   size: 48,
                 ),
                 SizedBox(height: 16),
                 Text(
                   'No outstanding bills',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: ThemeHelper.titleStyle(context),
                 ),
                 Text(
                   'All bills are up to date',
-                  style: TextStyle(
-                    color: Colors.white60,
-                    fontSize: 14,
-                  ),
+                  style: ThemeHelper.captionStyle(context),
                 ),
               ],
             ),
@@ -955,7 +858,6 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
   }
 
   Widget _buildComparisonTable() {
-    // Find CD and REG data
     OutstandingBill? cdData = outstandingBills.firstWhere(
           (bill) => bill.cdReg == 'CD',
       orElse: () => OutstandingBill(
@@ -989,13 +891,12 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
         padding: EdgeInsets.all(24),
         child: Column(
           children: [
-            // Header Row
             Container(
               padding: EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: Colors.white.withOpacity(0.2),
+                    color: ThemeHelper.borderColor(context),
                     width: 2,
                   ),
                 ),
@@ -1014,15 +915,11 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
                     child: Center(
                       child: Column(
                         children: [
-                          Icon(Icons.credit_card, color: Colors.blue, size: 24),
+                          Icon(Icons.credit_card, color: ThemeHelper.accentBlue, size: 24),
                           SizedBox(height: 4),
                           Text(
                             'CD',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: ThemeHelper.titleStyle(context),
                           ),
                         ],
                       ),
@@ -1033,15 +930,11 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
                     child: Center(
                       child: Column(
                         children: [
-                          Icon(Icons.receipt_long, color: Colors.orange, size: 24),
+                          Icon(Icons.receipt_long, color: ThemeHelper.accentOrange, size: 24),
                           SizedBox(height: 4),
                           Text(
                             'REG',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: ThemeHelper.titleStyle(context),
                           ),
                         ],
                       ),
@@ -1053,35 +946,32 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
 
             SizedBox(height: 16),
 
-            // Data Rows
             _buildTableRow('Pending Bills', cdData.pendingBills, regData.pendingBills, null, true),
             SizedBox(height: 12),
 
             Text(
               'Aging Breakdown',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+              style: ThemeHelper.bodyStyle(context).copyWith(
+                color: ThemeHelper.subtleTextColor(context),
               ),
             ),
             SizedBox(height: 12),
 
-            _buildTableRow('(< 30 days )', cdData.lessThan30Days, regData.lessThan30Days, Colors.green),
-            _buildTableRow('30 to 60 days', cdData.days30To60, regData.days30To60, Colors.blue),
-            _buildTableRow('60 to 75 days', cdData.days60To75, regData.days60To75, Colors.orange),
-            _buildTableRow('75 to 90 days', cdData.days75To90, regData.days75To90, Colors.deepOrange),
-            _buildTableRow('(> 90 days )', cdData.moreThan90Days, regData.moreThan90Days, Colors.red),
+            _buildTableRow('(< 30 days )', cdData.lessThan30Days, regData.lessThan30Days, ThemeHelper.successColor),
+            _buildTableRow('30 to 60 days', cdData.days30To60, regData.days30To60, ThemeHelper.infoColor),
+            _buildTableRow('60 to 75 days', cdData.days60To75, regData.days60To75, ThemeHelper.warningColor),
+            _buildTableRow('75 to 90 days', cdData.days75To90, regData.days75To90, Color(0xFFFF5722)),
+            _buildTableRow('(> 90 days )', cdData.moreThan90Days, regData.moreThan90Days, ThemeHelper.errorColor),
 
             SizedBox(height: 16),
             Container(
               width: double.infinity,
               height: 1,
-              color: Colors.white.withOpacity(0.2),
+              color: ThemeHelper.borderColor(context),
             ),
             SizedBox(height: 12),
 
-            _buildTableRow('On Account', cdData.onAccount, regData.onAccount, Colors.green, true),
+            _buildTableRow('On Account', cdData.onAccount, regData.onAccount, ThemeHelper.successColor, true),
           ],
         ),
       ),
@@ -1094,7 +984,6 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
       padding: EdgeInsets.symmetric(vertical: isMainRow ? 8 : 4),
       child: Row(
         children: [
-          // Label column
           Expanded(
             flex: 3,
             child: Row(
@@ -1112,10 +1001,10 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
                 Expanded(
                   child: Text(
                     label,
-                    style: TextStyle(
-                      color: isMainRow ? Colors.white : Colors.white70,
-                      fontSize: isMainRow ? 16 : 14,
-                      fontWeight: isMainRow ? FontWeight.w600 : FontWeight.w500,
+                    style: isMainRow
+                        ? ThemeHelper.subtitleStyle(context)
+                        : ThemeHelper.bodyStyle(context).copyWith(
+                      color: ThemeHelper.subtleTextColor(context),
                     ),
                   ),
                 ),
@@ -1123,7 +1012,6 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
             ),
           ),
 
-          // CD amount column
           Expanded(
             flex: 2,
             child: Center(
@@ -1134,15 +1022,11 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
                     Container(
                       margin: EdgeInsets.only(right: 4),
                       padding: EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(3),
-                        border: Border.all(color: Colors.red.withOpacity(0.4)),
-                      ),
+                      decoration: ThemeHelper.smallBadgeDecoration(ThemeHelper.errorColor),
                       child: Text(
                         'CR',
                         style: TextStyle(
-                          color: Colors.red,
+                          color: ThemeHelper.errorColor,
                           fontSize: 8,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1152,7 +1036,9 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
                     child: Text(
                       Formatters.formatCurrency(cdAmount.abs()),
                       style: TextStyle(
-                        color: cdAmount < 0 ? Colors.red : (isMainRow ? Colors.white : Colors.white70),
+                        color: cdAmount < 0
+                            ? ThemeHelper.errorColor
+                            : (isMainRow ? ThemeHelper.textColor(context) : ThemeHelper.subtleTextColor(context)),
                         fontSize: isMainRow ? 16 : 13,
                         fontWeight: isMainRow ? FontWeight.w700 : FontWeight.w600,
                       ),
@@ -1164,7 +1050,6 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
             ),
           ),
 
-          // REG amount column
           Expanded(
             flex: 2,
             child: Center(
@@ -1175,15 +1060,11 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
                     Container(
                       margin: EdgeInsets.only(right: 4),
                       padding: EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(3),
-                        border: Border.all(color: Colors.red.withOpacity(0.4)),
-                      ),
+                      decoration: ThemeHelper.smallBadgeDecoration(ThemeHelper.errorColor),
                       child: Text(
                         'CR',
                         style: TextStyle(
-                          color: Colors.red,
+                          color: ThemeHelper.errorColor,
                           fontSize: 8,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1193,7 +1074,9 @@ class _DealerDashboardScreenState extends State<DealerDashboardScreen> {
                     child: Text(
                       Formatters.formatCurrency(regAmount.abs()),
                       style: TextStyle(
-                        color: regAmount < 0 ? Colors.red : (isMainRow ? Colors.white : Colors.white70),
+                        color: regAmount < 0
+                            ? ThemeHelper.errorColor
+                            : (isMainRow ? ThemeHelper.textColor(context) : ThemeHelper.subtleTextColor(context)),
                         fontSize: isMainRow ? 16 : 13,
                         fontWeight: isMainRow ? FontWeight.w700 : FontWeight.w600,
                       ),

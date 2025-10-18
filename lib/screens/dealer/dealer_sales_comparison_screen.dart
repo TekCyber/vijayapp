@@ -1,9 +1,10 @@
-// lib/views/dealer/dealer_sales_comparison_screen.dart - Refactored with DataServices
+// lib/views/dealer/dealer_sales_comparison_screen.dart - COMPLETE THEME-AWARE VERSION
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../widgets/dashboard_layout.dart';
 import '../../widgets/glass_container.dart';
 import '../../widgets/common_dropdowns.dart';
+import '../../theme/theme_helpers.dart';
 
 import '../../models/search_filter_models.dart';
 import 'data_service.dart';
@@ -49,9 +50,8 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
   String _errorMessageSales = '';
 
   final Map<String, bool> _expandedBrands = {};
-  final Map<String, String?> _brandIcons = {}; // Cache for brand icons
+  final Map<String, String?> _brandIcons = {};
 
-  // DataServices instance
   final DataService _dataServices = DataService();
   final CommonDataService _commonDataService = CommonDataService();
 
@@ -82,7 +82,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
     super.dispose();
   }
 
-  // Load brands from API
   Future<void> _loadBrands() async {
     setState(() {
       isLoadingBrands = true;
@@ -95,7 +94,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
         isLoadingBrands = false;
         selectedBrand = brandOptions.isNotEmpty ? brandOptions.first : null;
       });
-      // Fetch sales data after brands are loaded
       _fetchSalesData();
     } catch (e) {
       setState(() {
@@ -197,12 +195,10 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
   }
 
   Future<void> _fetchSalesData() async {
-    // Don't fetch if brands are still loading or no brand selected
     if (isLoadingBrands || selectedBrand == null) {
       return;
     }
 
-    // For YTD, don't fetch if dates are not selected
     if (selectedPeriod == 'YTD' && (fromDate == null || toDate == null)) {
       setState(() {
         _salesData = [];
@@ -218,7 +214,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
     });
 
     try {
-      // Pass "%" for brand if "All Brands" is selected
       String? brandToFetch = selectedBrand == 'All Brands' ? '%' : selectedBrand;
 
       final result = await _dataServices.fetchSalesComparisonData(
@@ -236,7 +231,7 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
           _salesData = result['data'] ?? [];
           _isLoadingSales = false;
           _initializeExpandedBrands();
-          _loadBrandIcons(); // Load icons for all brands
+          _loadBrandIcons();
         });
       } else {
         setState(() {
@@ -260,7 +255,7 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
         .toSet();
 
     for (String brand in brands) {
-      _expandedBrands[brand] = false; // Keep collapsed by default
+      _expandedBrands[brand] = false;
     }
   }
 
@@ -344,7 +339,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
             ),
           ),
 
-          // Fixed bottom summary bar
           if (_salesData.isNotEmpty && !_isLoadingSales && _errorMessageSales.isEmpty)
             Positioned(
               left: 0,
@@ -374,26 +368,19 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
               width: 60,
               height: 60,
               child: CircularProgressIndicator(
-                color: Color(0xFF4F46E5),
+                color: Theme.of(context).primaryColor,
                 strokeWidth: 3,
               ),
             ),
             SizedBox(height: 24),
             Text(
               'Loading sales data...',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
+              style: ThemeHelper.subtitleStyle(context),
             ),
             SizedBox(height: 8),
             Text(
               'Analyzing sales comparison',
-              style: TextStyle(
-                color: Colors.white60,
-                fontSize: 14,
-              ),
+              style: ThemeHelper.captionStyle(context),
             ),
           ],
         ),
@@ -408,33 +395,29 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
             Container(
               padding: EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: ThemeHelper.errorColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.red.withOpacity(0.3),
+                  color: ThemeHelper.errorColor.withOpacity(0.3),
                   width: 1,
                 ),
               ),
               child: Icon(
                 Icons.error_outline,
-                color: Colors.red,
+                color: ThemeHelper.errorColor,
                 size: 48,
               ),
             ),
             SizedBox(height: 20),
             Text(
               'Failed to load sales data',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
+              style: ThemeHelper.titleStyle(context),
             ),
             SizedBox(height: 8),
             Text(
               _errorMessageSales,
               style: TextStyle(
-                color: Colors.red.withOpacity(0.8),
+                color: ThemeHelper.errorColor.withOpacity(0.8),
                 fontSize: 14,
               ),
               textAlign: TextAlign.center,
@@ -442,16 +425,16 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
             SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _fetchSalesData,
-              icon: Icon(Icons.refresh, color: Colors.white),
+              icon: Icon(Icons.refresh, color: ThemeHelper.textColor(context)),
               label: Text(
                 'Retry',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: ThemeHelper.textColor(context),
                   fontWeight: FontWeight.w600,
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF4F46E5),
+                backgroundColor: Theme.of(context).primaryColor,
                 padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -471,37 +454,30 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
             Container(
               padding: EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: ThemeHelper.infoColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.blue.withOpacity(0.3),
+                  color: ThemeHelper.infoColor.withOpacity(0.3),
                   width: 1,
                 ),
               ),
               child: Icon(
                 Icons.analytics_outlined,
-                color: Colors.blue,
+                color: ThemeHelper.infoColor,
                 size: 48,
               ),
             ),
             SizedBox(height: 20),
             Text(
               'No Sales Data Found',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
+              style: ThemeHelper.titleStyle(context),
             ),
             SizedBox(height: 8),
             Text(
               selectedPeriod == 'YTD'
                   ? 'Please select a date range to view YTD data'
                   : 'No data available for the selected filters',
-              style: TextStyle(
-                color: Colors.white60,
-                fontSize: 14,
-              ),
+              style: ThemeHelper.captionStyle(context),
               textAlign: TextAlign.center,
             ),
           ],
@@ -509,7 +485,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
       );
     }
 
-    // Group sales data by Brand
     Map<String, List<Map<String, dynamic>>> groupedByBrand = {};
     for (var item in _salesData) {
       String brand = item['Brand']?.toString() ?? 'Unknown';
@@ -519,7 +494,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
       groupedByBrand[brand]!.add(item);
     }
 
-    // Sort brands by total sales (Current + Previous)
     var brandList = groupedByBrand.entries.toList();
     brandList.sort((a, b) {
       double totalA = a.value.fold(0.0, (sum, item) {
@@ -547,10 +521,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
   }
 
   Widget _buildBrandCard(String brandName, List<Map<String, dynamic>> brandData) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final subtleColor = isDark ? Colors.white70 : Colors.black54;
-
     double brandCurrentTotal = brandData.fold(0.0, (sum, item) {
       return sum + (double.tryParse(item['Current']?.toString() ?? '0') ?? 0.0);
     });
@@ -570,7 +540,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top row with icon, brand name and expand button
                 GestureDetector(
                   behavior: HitTestBehavior.translucent,
                   onTap: () {
@@ -580,11 +549,10 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                   },
                   child: Row(
                     children: [
-                      // Brand Icon
                       Container(
                         padding: EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
+                          color: ThemeHelper.glassBackground(context),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: _buildBrandIcon(brandName),
@@ -596,7 +564,7 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                         child: Text(
                           brandName,
                           style: TextStyle(
-                            color: isDark ? Colors.blueAccent : Colors.blue.shade700,
+                            color: Theme.of(context).primaryColor,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                           ),
@@ -605,12 +573,12 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.blueAccent.withOpacity(0.2),
+                          color: Theme.of(context).primaryColor.withOpacity(0.2),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           isExpanded ? Icons.remove : Icons.add,
-                          color: isDark ? Colors.blueAccent : Colors.blue.shade700,
+                          color: Theme.of(context).primaryColor,
                           size: 18,
                         ),
                       ),
@@ -618,15 +586,12 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                   ),
                 ),
 
-                // Show totals when collapsed
                 if (!isExpanded) ...[
                   const SizedBox(height: 12),
                   Text(
                     'Total',
-                    style: TextStyle(
-                      color: subtleColor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                    style: ThemeHelper.bodyStyle(context).copyWith(
+                      color: ThemeHelper.subtleTextColor(context),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -635,22 +600,14 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                       Expanded(
                         child: Text(
                           '${_getCurrentLabel()}: ₹${_formatAmount(brandCurrentTotal)}',
-                          style: TextStyle(
-                            color: textColor,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: ThemeHelper.bodyStyle(context),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           '${_getPreviousLabel()}: ₹${_formatAmount(brandPreviousTotal)}',
-                          style: TextStyle(
-                            color: textColor,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: ThemeHelper.bodyStyle(context),
                         ),
                       ),
                     ],
@@ -662,8 +619,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
             if (isExpanded) ...[
               const SizedBox(height: 16),
 
-
-              // Header Row
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
                 child: Row(
@@ -672,11 +627,7 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                       flex: 5,
                       child: Text(
                         "Item",
-                        style: TextStyle(
-                          color: subtleColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: ThemeHelper.captionStyle(context),
                       ),
                     ),
                     SizedBox(width: 4),
@@ -684,11 +635,7 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                       flex: 2,
                       child: Text(
                         _getCurrentLabel(),
-                        style: TextStyle(
-                          color: subtleColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: ThemeHelper.captionStyle(context),
                         textAlign: TextAlign.right,
                       ),
                     ),
@@ -697,11 +644,7 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                       flex: 2,
                       child: Text(
                         _getPreviousLabel(),
-                        style: TextStyle(
-                          color: subtleColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: ThemeHelper.captionStyle(context),
                         textAlign: TextAlign.right,
                       ),
                     ),
@@ -715,13 +658,13 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                         children: [
                           Icon(
                             Icons.arrow_upward,
-                            color: Colors.green,
+                            color: ThemeHelper.successColor,
                             size: 12,
                           ),
                           SizedBox(width: 2),
                           Icon(
                             Icons.arrow_downward,
-                            color: Colors.red,
+                            color: ThemeHelper.errorColor,
                             size: 12,
                           ),
                         ],
@@ -731,9 +674,8 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                 ),
               ),
 
-              Divider(color: isDark ? Colors.white24 : Colors.black26, thickness: 1, height: 16),
+              Divider(color: ThemeHelper.dividerColor(context), thickness: 1, height: 16),
 
-              // Items
               ...brandData.map((item) {
                 String name = item['Name']?.toString() ?? 'Unknown';
                 double current = double.tryParse(item['Current']?.toString() ?? '0') ?? 0.0;
@@ -743,9 +685,8 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
               }).toList(),
 
               const SizedBox(height: 12),
-              Divider(color: isDark ? Colors.white24 : Colors.black26, thickness: 1, height: 16),
+              Divider(color: ThemeHelper.dividerColor(context), thickness: 1, height: 16),
 
-              // Brand Total Row
               _buildBrandTotalRow("Brand Total", brandCurrentTotal, brandPreviousTotal),
 
               const SizedBox(height: 8),
@@ -758,7 +699,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
   }
 
   Widget _buildBrandIcon(String brandName) {
-    // Get brand icon from cache
     String? base64Icon = _brandIcons[brandName];
 
     if (base64Icon != null && base64Icon.isNotEmpty) {
@@ -775,24 +715,20 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
         print('Error decoding icon for $brandName: $e');
         return Icon(
           Icons.business_center,
-          color: Color(0xFF4F46E5),
+          color: Theme.of(context).primaryColor,
           size: 20,
         );
       }
     }
 
-    // Show loading indicator while fetching, or default icon
     return Icon(
       Icons.business_center,
-      color: Color(0xFF4F46E5),
+      color: Theme.of(context).primaryColor,
       size: 20,
     );
   }
 
   Widget _buildTableRow(String label, double currentAmount, double previousAmount) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white70 : Colors.black87;
-
     double percentage = _calculatePercentage(currentAmount, previousAmount);
     bool isPositive = percentage >= 0;
     bool hasChange = percentage != 0;
@@ -802,7 +738,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
       child: Row(
         children: [
-          // Name column - with tooltip
           Expanded(
             flex: 5,
             child: Tooltip(
@@ -811,7 +746,9 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
               waitDuration: Duration(milliseconds: 300),
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.black87,
+                color: ThemeHelper.isDark(context)
+                    ? Color(0xFF1A1A1A)
+                    : Color(0xFF575757),
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
@@ -828,24 +765,18 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
               ),
               child: Text(
                 label,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: ThemeHelper.bodyStyle(context),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
             ),
           ),
           SizedBox(width: 4),
-          // Current amount column
           Expanded(
             flex: 2,
             child: Text(
               '₹${_formatAmount(currentAmount)}',
-              style: TextStyle(
-                color: textColor,
+              style: ThemeHelper.bodyStyle(context).copyWith(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -853,13 +784,11 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
             ),
           ),
           SizedBox(width: 4),
-          // Previous amount column
           Expanded(
             flex: 2,
             child: Text(
               '₹${_formatAmount(previousAmount)}',
-              style: TextStyle(
-                color: textColor,
+              style: ThemeHelper.bodyStyle(context).copyWith(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -867,7 +796,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
             ),
           ),
           SizedBox(width: 4),
-          // Percentage column - NO ARROW, just colored text
           Container(
             width: 60,
             alignment: Alignment.centerRight,
@@ -875,8 +803,8 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
               hasChange ? '${percentage.abs().toStringAsFixed(1)}%' : '-',
               style: TextStyle(
                 color: hasChange
-                    ? (isPositive ? Colors.green : Colors.red)
-                    : Colors.grey,
+                    ? (isPositive ? ThemeHelper.successColor : ThemeHelper.errorColor)
+                    : ThemeHelper.subtleTextColor(context),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -889,9 +817,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
   }
 
   Widget _buildBrandTotalRow(String label, double currentAmount, double previousAmount) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-
     double percentage = _calculatePercentage(currentAmount, previousAmount);
     bool isPositive = percentage >= 0;
     bool hasChange = percentage != 0;
@@ -899,7 +824,7 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
       decoration: BoxDecoration(
-        color: Colors.blueAccent.withOpacity(0.1),
+        color: Theme.of(context).primaryColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -908,11 +833,7 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
             flex: 5,
             child: Text(
               label,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
+              style: ThemeHelper.subtitleStyle(context),
             ),
           ),
           SizedBox(width: 4),
@@ -920,11 +841,7 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
             flex: 2,
             child: Text(
               '₹${_formatAmount(currentAmount)}',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
+              style: ThemeHelper.subtitleStyle(context),
               textAlign: TextAlign.right,
             ),
           ),
@@ -933,16 +850,11 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
             flex: 2,
             child: Text(
               '₹${_formatAmount(previousAmount)}',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
+              style: ThemeHelper.subtitleStyle(context),
               textAlign: TextAlign.right,
             ),
           ),
           SizedBox(width: 4),
-          // Percentage column - NO ARROW, just colored text
           Container(
             width: 60,
             alignment: Alignment.centerRight,
@@ -950,8 +862,8 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
               hasChange ? '${percentage.abs().toStringAsFixed(1)}%' : '-',
               style: TextStyle(
                 color: hasChange
-                    ? (isPositive ? Colors.green : Colors.red)
-                    : Colors.grey,
+                    ? (isPositive ? ThemeHelper.successColor : ThemeHelper.errorColor)
+                    : ThemeHelper.subtleTextColor(context),
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
@@ -964,9 +876,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
   }
 
   Widget _buildGrowthIndicator(double current, double previous) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final subtleColor = isDark ? Colors.white60 : Colors.black54;
-
     if (previous == 0) return const SizedBox.shrink();
 
     double growthAmount = current - previous;
@@ -977,27 +886,27 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: isPositive
-            ? Colors.green.withOpacity(0.1)
-            : Colors.red.withOpacity(0.1),
+            ? ThemeHelper.successColor.withOpacity(0.1)
+            : ThemeHelper.errorColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
           color: isPositive
-              ? Colors.green.withOpacity(0.3)
-              : Colors.red.withOpacity(0.3),
+              ? ThemeHelper.successColor.withOpacity(0.3)
+              : ThemeHelper.errorColor.withOpacity(0.3),
         ),
       ),
       child: Row(
         children: [
           Icon(
             isPositive ? Icons.trending_up : Icons.trending_down,
-            color: isPositive ? Colors.green : Colors.red,
+            color: isPositive ? ThemeHelper.successColor : ThemeHelper.errorColor,
             size: 16,
           ),
           const SizedBox(width: 8),
           Text(
             '${isPositive ? '+' : ''}₹${_formatAmount(growthAmount.abs())} (${growthPercentage.toStringAsFixed(1)}%)',
             style: TextStyle(
-              color: isPositive ? Colors.green : Colors.red,
+              color: isPositive ? ThemeHelper.successColor : ThemeHelper.errorColor,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -1005,10 +914,7 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
           const Spacer(),
           Text(
             'vs ${_getPreviousLabel()}',
-            style: TextStyle(
-              color: subtleColor,
-              fontSize: 12,
-            ),
+            style: ThemeHelper.captionStyle(context),
           ),
         ],
       ),
@@ -1027,7 +933,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
         final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         return '${months[lastMonth.month - 1]}-${lastMonth.year.toString().substring(2)}';
       case 'Last Year':
-      // Show current month from last year (e.g., Jun-24)
         final now = DateTime.now();
         final lastYear = DateTime(now.year , now.month);
         final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -1052,7 +957,6 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
         final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         return '${months[twoMonthsAgo.month - 1]}-${twoMonthsAgo.year.toString().substring(2)}';
       case 'Last Year':
-      // Show same month from 2 years ago (e.g., Jun-23)
         final now = DateTime.now();
         final twoYearsAgo = DateTime(now.year - 1, now.month);
         final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -1077,17 +981,13 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                 children: [
                   Icon(
                     Icons.date_range,
-                    color: Color(0xFF4F46E5),
+                    color: Theme.of(context).primaryColor,
                     size: 16,
                   ),
                   SizedBox(width: 6),
                   Text(
                     'Select Date Range for YTD',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: ThemeHelper.bodyStyle(context),
                   ),
                 ],
               ),
@@ -1102,10 +1002,10 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                       child: Container(
                         padding: EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: ThemeHelper.glassBackground(context),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
+                            color: ThemeHelper.borderColor(context),
                             width: 1,
                           ),
                         ),
@@ -1113,7 +1013,7 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                           children: [
                             Icon(
                               Icons.calendar_today,
-                              color: Colors.white70,
+                              color: ThemeHelper.subtleTextColor(context),
                               size: 14,
                             ),
                             SizedBox(width: 8),
@@ -1123,18 +1023,16 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                                 children: [
                                   Text(
                                     'From',
-                                    style: TextStyle(
-                                      color: Colors.white60,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                    style: ThemeHelper.smallStyle(context),
                                   ),
                                   Text(
                                     fromDate != null
                                         ? '${fromDate!.day}/${fromDate!.month}/${fromDate!.year}'
                                         : 'Select',
                                     style: TextStyle(
-                                      color: fromDate != null ? Colors.white : Colors.white60,
+                                      color: fromDate != null
+                                          ? ThemeHelper.textColor(context)
+                                          : ThemeHelper.subtleTextColor(context),
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -1156,10 +1054,10 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                       child: Container(
                         padding: EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: ThemeHelper.glassBackground(context),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
+                            color: ThemeHelper.borderColor(context),
                             width: 1,
                           ),
                         ),
@@ -1167,7 +1065,7 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                           children: [
                             Icon(
                               Icons.calendar_today,
-                              color: Colors.white70,
+                              color: ThemeHelper.subtleTextColor(context),
                               size: 14,
                             ),
                             SizedBox(width: 8),
@@ -1177,18 +1075,16 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                                 children: [
                                   Text(
                                     'To',
-                                    style: TextStyle(
-                                      color: Colors.white60,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                    style: ThemeHelper.smallStyle(context),
                                   ),
                                   Text(
                                     toDate != null
                                         ? '${toDate!.day}/${toDate!.month}/${toDate!.year}'
                                         : 'Select',
                                     style: TextStyle(
-                                      color: toDate != null ? Colors.white : Colors.white60,
+                                      color: toDate != null
+                                          ? ThemeHelper.textColor(context)
+                                          : ThemeHelper.subtleTextColor(context),
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -1208,8 +1104,8 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                     onPressed: (fromDate != null && toDate != null) ? _saveDateRange : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: (fromDate != null && toDate != null)
-                          ? Color(0xFF4F46E5)
-                          : Colors.grey.withOpacity(0.3),
+                          ? Theme.of(context).primaryColor
+                          : ThemeHelper.glassBackground(context),
                       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
@@ -1221,14 +1117,18 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                       children: [
                         Icon(
                           Icons.save,
-                          color: (fromDate != null && toDate != null) ? Colors.white : Colors.grey,
+                          color: (fromDate != null && toDate != null)
+                              ? Colors.white
+                              : ThemeHelper.subtleTextColor(context),
                           size: 16,
                         ),
                         SizedBox(width: 6),
                         Text(
                           'Apply',
                           style: TextStyle(
-                            color: (fromDate != null && toDate != null) ? Colors.white : Colors.grey,
+                            color: (fromDate != null && toDate != null)
+                                ? Colors.white
+                                : ThemeHelper.subtleTextColor(context),
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1244,10 +1144,10 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                 Container(
                   padding: EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: ThemeHelper.errorColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(
-                      color: Colors.red.withOpacity(0.3),
+                      color: ThemeHelper.errorColor.withOpacity(0.3),
                       width: 1,
                     ),
                   ),
@@ -1255,14 +1155,14 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                     children: [
                       Icon(
                         Icons.warning,
-                        color: Colors.red,
+                        color: ThemeHelper.errorColor,
                         size: 14,
                       ),
                       SizedBox(width: 6),
                       Text(
                         'To Date must be after From Date',
                         style: TextStyle(
-                          color: Colors.red,
+                          color: ThemeHelper.errorColor,
                           fontSize: 11,
                         ),
                       ),
@@ -1287,10 +1187,10 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.dark(
-              primary: Color(0xFF4F46E5),
+              primary: Theme.of(context).primaryColor,
               onPrimary: Colors.white,
-              surface: Color(0xFF1F2937),
-              onSurface: Colors.white,
+              surface: ThemeHelper.surfaceColor(context),
+              onSurface: ThemeHelper.textColor(context),
             ),
           ),
           child: child!,
@@ -1318,10 +1218,10 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.dark(
-              primary: Color(0xFF4F46E5),
+              primary: Theme.of(context).primaryColor,
               onPrimary: Colors.white,
-              surface: Color(0xFF1F2937),
-              onSurface: Colors.white,
+              surface: ThemeHelper.surfaceColor(context),
+              onSurface: ThemeHelper.textColor(context),
             ),
           ),
           child: child!,
@@ -1346,7 +1246,7 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
             'Date range saved: ${fromDate!.day}/${fromDate!.month}/${fromDate!.year} - ${toDate!.day}/${toDate!.month}/${toDate!.year}',
             style: TextStyle(color: Colors.white),
           ),
-          backgroundColor: Colors.green.withOpacity(0.8),
+          backgroundColor: ThemeHelper.successColor.withOpacity(0.8),
           duration: Duration(seconds: 3),
         ),
       );
@@ -1383,53 +1283,41 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
           children: [
             Icon(
               Icons.calculate,
-              color: Color(0xFF4F46E5),
+              color: Theme.of(context).primaryColor,
               size: 16,
             ),
             SizedBox(width: 8),
             Text(
               'Total: ',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+              style: ThemeHelper.captionStyle(context),
             ),
             Text(
               '₹${_formatAmount(previousTotal)}',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+              style: ThemeHelper.captionStyle(context),
             ),
             SizedBox(width: 6),
             Icon(
               Icons.arrow_forward,
-              color: Colors.white60,
+              color: ThemeHelper.subtleTextColor(context),
               size: 14,
             ),
             SizedBox(width: 6),
             Text(
               '₹${_formatAmount(currentTotal)}',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
+              style: ThemeHelper.bodyStyle(context),
             ),
             Spacer(),
             Container(
               padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: isPositive
-                    ? Colors.green.withOpacity(0.2)
-                    : Colors.red.withOpacity(0.2),
+                    ? ThemeHelper.successColor.withOpacity(0.2)
+                    : ThemeHelper.errorColor.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: isPositive
-                      ? Colors.green.withOpacity(0.4)
-                      : Colors.red.withOpacity(0.4),
+                      ? ThemeHelper.successColor.withOpacity(0.4)
+                      : ThemeHelper.errorColor.withOpacity(0.4),
                   width: 1,
                 ),
               ),
@@ -1438,14 +1326,14 @@ class _DealerSalesComparisonScreenState extends State<DealerSalesComparisonScree
                 children: [
                   Icon(
                     isPositive ? Icons.trending_up : Icons.trending_down,
-                    color: isPositive ? Colors.green : Colors.red,
+                    color: isPositive ? ThemeHelper.successColor : ThemeHelper.errorColor,
                     size: 14,
                   ),
                   SizedBox(width: 4),
                   Text(
                     '${totalPercentage.abs().toStringAsFixed(1)}%',
                     style: TextStyle(
-                      color: isPositive ? Colors.green : Colors.red,
+                      color: isPositive ? ThemeHelper.successColor : ThemeHelper.errorColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),

@@ -1,4 +1,4 @@
-// lib/screens/dealer/dealer_sales_view.dart - Updated with 3-row design like DealerCountScreen
+// lib/screens/dealer/dealer_sales_view.dart - COMPLETE THEME-AWARE VERSION
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/formatters.dart';
@@ -6,6 +6,7 @@ import '../../widgets/glass_container.dart';
 import '../../widgets/dashboard_layout.dart';
 import '../../services/api_service.dart';
 import '../../models/search_filter_models.dart';
+import '../../theme/theme_helpers.dart';
 import 'dealer_menu_screen.dart';
 import 'menu_navigator.dart';
 
@@ -26,7 +27,6 @@ class _DealerSalesViewState extends State<DealerSalesView> {
   int selectedMenuIndex = 0;
   bool _showAll = false;
 
-  // Filter state - managed locally now
   String _searchText = '';
   String? _selectedRoute;
 
@@ -37,12 +37,10 @@ class _DealerSalesViewState extends State<DealerSalesView> {
     _fetchSalesData();
   }
 
-  // Create search filter options using the widget-based approach
   List<SearchFilterOption> _getSearchFilters() {
     if (_routes.isEmpty) return [];
 
     return [
-      // Search text filter
       SearchFilterOption(
         key: 'search',
         widget: SearchTextFilter(
@@ -57,7 +55,6 @@ class _DealerSalesViewState extends State<DealerSalesView> {
         ),
       ),
 
-      // Route dropdown filter
       SearchFilterOption(
         key: 'route',
         widget: RouteDropdownFilter(
@@ -74,11 +71,8 @@ class _DealerSalesViewState extends State<DealerSalesView> {
     ];
   }
 
-  // Handle filter changes from the top bar (optional - can be used for external updates)
   void _handleFilterChanged(Map<String, dynamic> filters) {
     print('DealerSalesView: Received filters: $filters');
-    // Since widgets manage their own state now, this is mainly for debugging
-    // or if you need to sync with external filter changes
   }
 
   Future<void> _fetchRoutes() async {
@@ -229,21 +223,17 @@ class _DealerSalesViewState extends State<DealerSalesView> {
 
   @override
   Widget build(BuildContext context) {
-    // Apply filters using local state
     final searchText = _searchText.toLowerCase().trim();
 
     List<Map<String, dynamic>> filtered = _salesData;
 
-    // Apply filters only when we have data
     if (_salesData.isNotEmpty) {
       filtered = _salesData.where((item) {
-        // Search filter - only apply if 3+ characters
         bool dealerMatch = true;
         if (searchText.isNotEmpty && searchText.length >= 3) {
           dealerMatch = item['dealername'].toString().toLowerCase().contains(searchText);
         }
 
-        // Route filter
         bool routeMatch = true;
         if (_selectedRoute != null && _selectedRoute != 'All Routes') {
           routeMatch = item['route'] == _selectedRoute;
@@ -260,14 +250,12 @@ class _DealerSalesViewState extends State<DealerSalesView> {
     return DashboardLayout(
       title: "My Dealers",
       onTabSelected: _onMenuSelected,
-      // Enable the integrated search/filter system with widget-based filters
       searchFilters: _getSearchFilters(),
       onFilterChanged: _handleFilterChanged,
       searchHint: "Search dealers... (min 3 characters)",
       body: RefreshIndicator(
         onRefresh: () async {
           setState(() {
-            // Clear all filter state
             _searchText = '';
             _selectedRoute = _routes.isNotEmpty ? _routes.first : null;
             _showAll = false;
@@ -281,14 +269,13 @@ class _DealerSalesViewState extends State<DealerSalesView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Show all dealers toggle - updated to match DealerCountScreen style
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Container(
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
+                      color: ThemeHelper.glassBackground(context),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -306,12 +293,12 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: _showAll ? Colors.greenAccent.withOpacity(0.8) : Colors.transparent,
+                              color: _showAll ? ThemeHelper.accentGreen.withOpacity(0.8) : Colors.transparent,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Icon(
                               _showAll ? Icons.remove : Icons.add,
-                              color: _showAll ? Colors.white : Colors.white70,
+                              color: _showAll ? Colors.white : ThemeHelper.subtleTextColor(context),
                               size: 16,
                             ),
                           ),
@@ -324,32 +311,27 @@ class _DealerSalesViewState extends State<DealerSalesView> {
 
               const SizedBox(height: 16),
 
-              // Display current filter status
               if (_searchText.isNotEmpty || (_selectedRoute != null && _selectedRoute != 'All Routes'))
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: Colors.blueAccent.withOpacity(0.1),
+                    color: ThemeHelper.accentBlue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: Colors.blueAccent.withOpacity(0.3),
+                      color: ThemeHelper.accentBlue.withOpacity(0.3),
                     ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.filter_list, color: Colors.blueAccent, size: 16),
+                      Icon(Icons.filter_list, color: ThemeHelper.accentBlue, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Filters applied: ${_buildFilterSummary()}',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
+                          style: ThemeHelper.captionStyle(context),
                         ),
                       ),
-                      // Clear filters button
                       GestureDetector(
                         onTap: () {
                           setState(() {
@@ -360,12 +342,12 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: Colors.blueAccent.withOpacity(0.2),
+                            color: ThemeHelper.accentBlue.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.clear,
-                            color: Colors.blueAccent,
+                            color: ThemeHelper.accentBlue,
                             size: 14,
                           ),
                         ),
@@ -378,18 +360,18 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                 const Center(child: CircularProgressIndicator())
               else if (_errorMessage.isNotEmpty)
                 Center(child: Text(_errorMessage,
-                    style: const TextStyle(color: Colors.red)))
+                    style: TextStyle(color: ThemeHelper.errorColor)))
               else if (groupedData.isEmpty)
-                  const Center(
+                  Center(
                       child: Text("No dealers found",
-                          style: TextStyle(color: Colors.white70)))
+                          style: ThemeHelper.bodyStyle(context).copyWith(
+                            color: ThemeHelper.subtleTextColor(context),
+                          )))
                 else
                   Column(
                     children: [
-                      // Add Overall Sales Summary Card
                       _buildOverallSalesCard(groupedData),
                       const SizedBox(height: 20),
-                      // Individual dealer cards
                       ...visibleEntries
                           .map((e) => Padding(
                         padding: const EdgeInsets.only(bottom: 20),
@@ -415,9 +397,7 @@ class _DealerSalesViewState extends State<DealerSalesView> {
     return filters.join(', ');
   }
 
-  // Overall Sales Summary Card - similar to DealerCountScreen's overall card
   Widget _buildOverallSalesCard(Map<String, List<Map<String, dynamic>>> groupedData) {
-    // Calculate overall totals from all dealers
     double overallCurrentTotal = 0.0;
     double overallPreviousTotal = 0.0;
 
@@ -435,46 +415,37 @@ class _DealerSalesViewState extends State<DealerSalesView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(
               children: [
                 Icon(
                   Icons.trending_up,
-                  color: Colors.orangeAccent,
+                  color: ThemeHelper.accentOrange,
                   size: 24,
                 ),
                 const SizedBox(width: 12),
                 Text(
                   'Overall Sales Total',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: ThemeHelper.headerStyle(context).copyWith(fontSize: 20),
                 ),
               ],
             ),
             const SizedBox(height: 16),
 
-            // Info summary
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.orangeAccent.withOpacity(0.1),
+                color: ThemeHelper.accentOrange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orangeAccent.withOpacity(0.3)),
+                border: Border.all(color: ThemeHelper.accentOrange.withOpacity(0.3)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.orangeAccent, size: 16),
+                  Icon(Icons.info_outline, color: ThemeHelper.accentOrange, size: 16),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Total sales across ${groupedData.length} dealers (${!_showAll && groupedData.length > 5 ? 'showing 5' : 'all displayed'})',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
+                      style: ThemeHelper.captionStyle(context),
                     ),
                   ),
                 ],
@@ -482,7 +453,6 @@ class _DealerSalesViewState extends State<DealerSalesView> {
             ),
             const SizedBox(height: 12),
 
-            // Table Header
             Container(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
@@ -493,11 +463,7 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                     child: Center(
                       child: Text(
                         _getCurrentMonthName(),
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: ThemeHelper.bodyStyle(context),
                       ),
                     ),
                   ),
@@ -506,24 +472,19 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                     child: Center(
                       child: Text(
                         _getUptoLastMonthName(),
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: ThemeHelper.bodyStyle(context),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            const Divider(color: Colors.white24, thickness: 1, height: 16),
+            Divider(color: ThemeHelper.dividerColor(context), thickness: 1, height: 16),
 
-            // Overall Total Row
             Container(
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.orangeAccent.withOpacity(0.05),
+                color: ThemeHelper.accentOrange.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -537,17 +498,13 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                           height: 10,
                           margin: const EdgeInsets.only(right: 12),
                           decoration: BoxDecoration(
-                            color: Colors.orangeAccent.withOpacity(0.8),
+                            color: ThemeHelper.accentOrange.withOpacity(0.8),
                             shape: BoxShape.circle,
                           ),
                         ),
-                        const Text(
+                        Text(
                           "Grand Total",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: ThemeHelper.titleStyle(context),
                         ),
                       ],
                     ),
@@ -558,7 +515,7 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                       child: Text(
                         Formatters.formatCurrency(overallCurrentTotal.abs()),
                         style: TextStyle(
-                          color: overallCurrentTotal < 0 ? Colors.red : Colors.white,
+                          color: overallCurrentTotal < 0 ? ThemeHelper.errorColor : ThemeHelper.textColor(context),
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -572,7 +529,7 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                       child: Text(
                         Formatters.formatCurrency(overallPreviousTotal.abs()),
                         style: TextStyle(
-                          color: overallPreviousTotal < 0 ? Colors.red : Colors.white,
+                          color: overallPreviousTotal < 0 ? ThemeHelper.errorColor : ThemeHelper.textColor(context),
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -585,7 +542,6 @@ class _DealerSalesViewState extends State<DealerSalesView> {
             ),
             const SizedBox(height: 8),
 
-            // Growth Indicator
             _buildSalesGrowthIndicator(overallCurrentTotal, overallPreviousTotal),
           ],
         ),
@@ -593,7 +549,6 @@ class _DealerSalesViewState extends State<DealerSalesView> {
     );
   }
 
-  // Growth indicator for sales
   Widget _buildSalesGrowthIndicator(double current, double previous) {
     if (previous == 0) return const SizedBox.shrink();
 
@@ -605,27 +560,27 @@ class _DealerSalesViewState extends State<DealerSalesView> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: isPositive
-            ? Colors.green.withOpacity(0.1)
-            : Colors.red.withOpacity(0.1),
+            ? ThemeHelper.successColor.withOpacity(0.1)
+            : ThemeHelper.errorColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
           color: isPositive
-              ? Colors.green.withOpacity(0.3)
-              : Colors.red.withOpacity(0.3),
+              ? ThemeHelper.successColor.withOpacity(0.3)
+              : ThemeHelper.errorColor.withOpacity(0.3),
         ),
       ),
       child: Row(
         children: [
           Icon(
             isPositive ? Icons.trending_up : Icons.trending_down,
-            color: isPositive ? Colors.green : Colors.red,
+            color: isPositive ? ThemeHelper.successColor : ThemeHelper.errorColor,
             size: 16,
           ),
           const SizedBox(width: 8),
           Text(
             '${isPositive ? '+' : ''}${Formatters.formatCurrency(growthAmount.abs())} (${growthPercentage.toStringAsFixed(1)}%)',
             style: TextStyle(
-              color: isPositive ? Colors.green : Colors.red,
+              color: isPositive ? ThemeHelper.successColor : ThemeHelper.errorColor,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -633,17 +588,13 @@ class _DealerSalesViewState extends State<DealerSalesView> {
           const Spacer(),
           Text(
             'vs Previous Period',
-            style: const TextStyle(
-              color: Colors.white60,
-              fontSize: 12,
-            ),
+            style: ThemeHelper.captionStyle(context),
           ),
         ],
       ),
     );
   }
 
-  // Updated _buildDealerCard with 3-row design like DealerCountScreen
   Widget _buildDealerCard(String dealerName, List<Map<String, dynamic>> sales) {
     double totalMonthly =
     sales.fold(0.0, (sum, e) => sum + (e['monthlySale'] as double));
@@ -666,7 +617,6 @@ class _DealerSalesViewState extends State<DealerSalesView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Dealer Header with 3-row conditional layout like DealerCountScreen
               GestureDetector(
                 behavior: HitTestBehavior.translucent,
                 onTap: () {
@@ -680,60 +630,44 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Row 1: Dealer name with styled container (always visible) - like Brand styling
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.blueAccent.withOpacity(0.2),
+                              color: ThemeHelper.accentBlue.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               dealerName.length > 25 ? '${dealerName.substring(0, 25)}...' : dealerName,
-                              style: const TextStyle(
-                                color: Colors.blueAccent,
+                              style: TextStyle(
+                                color: ThemeHelper.accentBlue,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
 
-                          // Show rows 2-3 only when collapsed (not expanded)
                           if (!isExpanded) ...[
                             const SizedBox(height: 8),
 
-                            // Row 2: "Total" label (made bolder)
-                            const Text(
+                            Text(
                               'Total',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700, // Made bolder
-                              ),
+                              style: ThemeHelper.bodyStyle(context),
                             ),
                             const SizedBox(height: 4),
 
-                            // Row 3: Current and Previous amounts
                             Row(
                               children: [
                                 Expanded(
                                   child: Text(
                                     '${_getCurrentMonthName()}: ${Formatters.formatCurrency(totalMonthly.abs())}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                    style: ThemeHelper.bodyStyle(context).copyWith(fontSize: 13),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
                                     '${_getUptoLastMonthName()}: ${Formatters.formatCurrency(totalYearly.abs())}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                    style: ThemeHelper.bodyStyle(context).copyWith(fontSize: 13),
                                   ),
                                 ),
                               ],
@@ -745,12 +679,12 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: Colors.blueAccent.withOpacity(0.2),
+                        color: ThemeHelper.accentBlue.withOpacity(0.2),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         isExpanded ? Icons.remove : Icons.add,
-                        color: Colors.blueAccent,
+                        color: ThemeHelper.accentBlue,
                         size: 18,
                       ),
                     ),
@@ -758,11 +692,9 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                 ),
               ),
 
-              // Expandable content
               if (isExpanded) ...[
                 const SizedBox(height: 16),
 
-                // Sales Table Header
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   child: Row(
@@ -773,11 +705,7 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                         child: Center(
                           child: Text(
                             _getCurrentMonthName(),
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: ThemeHelper.bodyStyle(context),
                           ),
                         ),
                       ),
@@ -786,35 +714,29 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                         child: Center(
                           child: Text(
                             _getUptoLastMonthName(),
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: ThemeHelper.bodyStyle(context),
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Divider(color: Colors.white24, thickness: 1, height: 16),
+                Divider(color: ThemeHelper.dividerColor(context), thickness: 1, height: 16),
 
-                // Expanded Sales Details
                 Column(
                   children: sales.map((e) {
                     return _buildTableRow(
                       e['brand'] ?? '',
                       e['monthlySale'] as double,
                       e['yearlySale'] as double,
-                      Colors.blueAccent,
+                      ThemeHelper.accentBlue,
                     );
                   }).toList(),
                 ),
 
                 const SizedBox(height: 12),
-                const Divider(color: Colors.white24, thickness: 1, height: 16),
+                Divider(color: ThemeHelper.dividerColor(context), thickness: 1, height: 16),
 
-                // Total Sales Row
                 _buildTableRow("Total Sales", totalMonthly, totalYearly, null, true),
               ],
             ],
@@ -848,11 +770,9 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                 Expanded(
                   child: Text(
                     label,
-                    style: TextStyle(
-                      color: isMainRow ? Colors.white : Colors.white70,
-                      fontSize: isMainRow ? 16 : 14,
-                      fontWeight: isMainRow ? FontWeight.w600 : FontWeight.w500,
-                    ),
+                    style: isMainRow
+                        ? ThemeHelper.subtitleStyle(context)
+                        : ThemeHelper.bodyStyle(context),
                   ),
                 ),
               ],
@@ -865,8 +785,8 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                 Formatters.formatCurrency(cdAmount.abs()),
                 style: TextStyle(
                   color: cdAmount < 0
-                      ? Colors.red
-                      : (isMainRow ? Colors.white : Colors.white70),
+                      ? ThemeHelper.errorColor
+                      : (isMainRow ? ThemeHelper.textColor(context) : ThemeHelper.subtleTextColor(context)),
                   fontSize: isMainRow ? 16 : 13,
                   fontWeight: isMainRow ? FontWeight.w700 : FontWeight.w600,
                 ),
@@ -881,8 +801,8 @@ class _DealerSalesViewState extends State<DealerSalesView> {
                 Formatters.formatCurrency(regAmount.abs()),
                 style: TextStyle(
                   color: regAmount < 0
-                      ? Colors.red
-                      : (isMainRow ? Colors.white : Colors.white70),
+                      ? ThemeHelper.errorColor
+                      : (isMainRow ? ThemeHelper.textColor(context) : ThemeHelper.subtleTextColor(context)),
                   fontSize: isMainRow ? 16 : 13,
                   fontWeight: isMainRow ? FontWeight.w700 : FontWeight.w600,
                 ),
@@ -933,36 +853,26 @@ class _SearchTextFilterState extends State<SearchTextFilter> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
+      decoration: ThemeHelper.inputDecoration(context),
       child: TextField(
         controller: _controller,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 16,
-        ),
+        style: ThemeHelper.subtitleStyle(context),
         decoration: InputDecoration(
           hintText: widget.hint,
           hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.6),
+            color: ThemeHelper.hintTextColor(context),
             fontSize: 16,
           ),
           prefixIcon: Icon(
             Icons.search,
-            color: Colors.white.withOpacity(0.7),
+            color: ThemeHelper.iconColor(context),
             size: 22,
           ),
           suffixIcon: _controller.text.isNotEmpty
               ? IconButton(
             icon: Icon(
               Icons.clear,
-              color: Colors.white.withOpacity(0.7),
+              color: ThemeHelper.iconColor(context),
               size: 20,
             ),
             onPressed: () {
@@ -978,7 +888,7 @@ class _SearchTextFilterState extends State<SearchTextFilter> {
           ),
         ),
         onChanged: (value) {
-          setState(() {}); // Refresh to show/hide clear button
+          setState(() {});
           widget.onChanged(value);
         },
       ),
@@ -986,7 +896,7 @@ class _SearchTextFilterState extends State<SearchTextFilter> {
   }
 }
 
-// Route Dropdown Widget - Updated with multi-line support
+// Route Dropdown Widget
 class RouteDropdownFilter extends StatefulWidget {
   final List<String> routes;
   final String? selectedRoute;
@@ -1009,25 +919,18 @@ class _RouteDropdownFilterState extends State<RouteDropdownFilter> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
+      decoration: ThemeHelper.inputDecoration(context),
       child: DropdownButtonFormField<String>(
         value: widget.selectedRoute,
         decoration: InputDecoration(
           hintText: widget.label,
           hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.6),
+            color: ThemeHelper.hintTextColor(context),
             fontSize: 16,
           ),
           prefixIcon: Icon(
             Icons.route,
-            color: Colors.white.withOpacity(0.7),
+            color: ThemeHelper.iconColor(context),
             size: 22,
           ),
           border: InputBorder.none,
@@ -1036,36 +939,29 @@ class _RouteDropdownFilterState extends State<RouteDropdownFilter> {
             vertical: 14,
           ),
         ),
-        dropdownColor: const Color(0xFF1a1a2e),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 16,
-        ),
+        dropdownColor: ThemeHelper.dropdownColor(context),
+        style: ThemeHelper.subtitleStyle(context),
         icon: Icon(
           Icons.keyboard_arrow_down,
-          color: Colors.white.withOpacity(0.7),
+          color: ThemeHelper.iconColor(context),
         ),
-        isExpanded: true, // This allows the selected text to wrap
+        isExpanded: true,
         items: widget.routes.map((String route) {
           return DropdownMenuItem<String>(
             value: route,
             child: Container(
               width: double.infinity,
               constraints: const BoxConstraints(
-                minHeight: 48, // Minimum height for better touch target
+                minHeight: 48,
               ),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   route,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    height: 1.3, // Line height for better readability
-                  ),
-                  maxLines: null, // Allow unlimited lines
-                  softWrap: true, // Enable text wrapping
-                  overflow: TextOverflow.visible, // Don't truncate
+                  style: ThemeHelper.subtitleStyle(context),
+                  maxLines: null,
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
                 ),
               ),
             ),
