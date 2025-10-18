@@ -3,7 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/api_service.dart';
 
-
 class DataService {
   final ApiService _apiService = ApiService();
 
@@ -12,8 +11,6 @@ class DataService {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('username');
   }
-
-
 
   // Get material groups by brand
   Future<List<String>> getMaterialGroupsByBrand(String brand) async {
@@ -98,8 +95,8 @@ class DataService {
 
   // Get filtered dealers data
   Future<List<Map<String, dynamic>>> getFilteredDealers({
-    required String period, // "THIS_MONTH" or "LY"
-    required String comparison, // "MOM" or "QTR"
+    required String period,
+    required String comparison,
     String? brand,
     String? materialGroup,
     String? route,
@@ -132,8 +129,8 @@ class DataService {
 
   // Get filtered products data
   Future<List<Map<String, dynamic>>> getFilteredProducts({
-    required String period, // "THIS_MONTH" or "LY"
-    required String comparison, // "MOM" or "QTR"
+    required String period,
+    required String comparison,
     String? brand,
     String? dealer,
     String? route,
@@ -149,7 +146,7 @@ class DataService {
         "executive": executive,
         "brand": brand ?? "%",
         "dealername": dealer ?? "%",
-        "route" : route ?? "%"
+        "route": route ?? "%"
       };
 
       final response = await _apiService.request(payload: payload);
@@ -166,7 +163,7 @@ class DataService {
 
   // Get dealer count data
   Future<List<Map<String, dynamic>>> getDealerCount({
-    required String period, // "LY" or "THIS_MONTH"
+    required String period,
     String? brand,
     String? route,
   }) async {
@@ -195,9 +192,9 @@ class DataService {
     }
   }
 
-  // Get dealer count data
+  // Get total dealer count data
   Future<List<Map<String, dynamic>>> getTotalDealerCount({
-    required String period, // "LY" or "THIS_MONTH"
+    required String period,
     String? brand,
     String? route,
   }) async {
@@ -266,31 +263,8 @@ class DataService {
     }
   }
 
-  // NEW: Get all scheme names
-  Future<List<String>> getAllSchemeNames() async {
-    try {
-      Map<String, dynamic> payload = {
-        "sqlKey": "GET_ALL_SCHEME_NAME"
-      };
-
-      final response = await _apiService.request(payload: payload);
-
-      if (response.isSuccess && response.data != null) {
-        List<String> schemes = List<Map<String, dynamic>>.from(response.data!)
-            .map((item) => item['schemename']?.toString() ?? '')
-            .where((scheme) => scheme.isNotEmpty)
-            .toList();
-        return schemes;
-      }
-      return [];
-    } catch (e) {
-      print('Error fetching scheme names: $e');
-      return [];
-    }
-  }
-
-  // NEW: Get schemes by executive with filters
-  Future<List<Map<String, dynamic>>> getSchemesByExecutive({
+  // UPDATED: Get schemes by executive and route with scheme name filter
+  Future<List<Map<String, dynamic>>> getSchemesByExecutiveAndRoute({
     String? route,
     String? schemeName,
   }) async {
@@ -299,7 +273,7 @@ class DataService {
       if (executive == null) return [];
 
       Map<String, dynamic> payload = {
-        "sqlKey": "GET_ALL_SCHEME_BY_EXECUTIVE",
+        "sqlKey": "GET_SCHEME_DETAILS_BY_EXECUTIVE_AND_ROUTE",
         "executive": executive,
         "route": route ?? "%",
         "schemename": schemeName ?? "%",
@@ -312,12 +286,12 @@ class DataService {
       }
       return [];
     } catch (e) {
-      print('Error fetching schemes by executive: $e');
+      print('Error fetching schemes by executive and route: $e');
       return [];
     }
   }
 
-  // NEW: Get historic schemes by dealer
+  // Get historic schemes by dealer
   Future<List<Map<String, dynamic>>> getHistoricSchemesByDealer({
     required String dealerName,
   }) async {

@@ -34,6 +34,8 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
   double _sgst = 0.0;
   double _roundOff = 0.0;
   double _charges = 0.0;
+  double _totalDisc = 0.0;
+  String _invoiceDate = '';
 
   @override
   void initState() {
@@ -57,7 +59,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
 
       Map<String, dynamic> payload = {
         "sqlKey": "GET_INVOICE_DETAILS",
-        "invoiceno":    widget.invoiceNo.split("/" + widget.financialYear )[0]+ "/" + widget.financialYear
+        "invoiceno": widget.invoiceNo.split("/" + widget.financialYear)[0] + "/" + widget.financialYear
       };
 
       ApiService apiService = ApiService();
@@ -67,12 +69,14 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
         List<Map<String, dynamic>> fetchedData =
         List<Map<String, dynamic>>.from(response.data!);
 
-        // Extract CGST, SGST, RoundOff, and Charges from the first row
+        // Extract CGST, SGST, RoundOff, Charges, and Date from the first row
         if (fetchedData.isNotEmpty) {
           _cgst = _parseAmount(fetchedData[0]['CGST']);
           _sgst = _parseAmount(fetchedData[0]['SGST']);
           _roundOff = _parseAmount(fetchedData[0]['RoundOff']);
           _charges = _parseAmount(fetchedData[0]['Charges']);
+          _totalDisc = _parseAmount(fetchedData[0]['total_disc']);
+          _invoiceDate = fetchedData[0]['Date']?.toString() ?? '';
         }
 
         setState(() {
@@ -117,7 +121,8 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
 
   double _calculateGrandTotal() {
     double subTotal = _calculateSubTotal();
-    return subTotal + _cgst + _sgst + _roundOff + _charges;
+    // Note: total_disc is negative in the API, so we add it (which effectively subtracts)
+    return subTotal + _cgst + _sgst + _roundOff + _charges + _totalDisc;
   }
 
   String _formatAmount(dynamic amount) {
@@ -192,16 +197,39 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                   size: 20,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  widget.invoiceNo,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: Text(
+                    widget.invoiceNo,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
             ),
+            if (_invoiceDate.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today,
+                    color: Colors.white60,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Date: $_invoiceDate',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -282,7 +310,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               Icon(Icons.inbox_outlined, color: Colors.white60, size: 48),
               SizedBox(height: 16),
               Text(
-                'N/A',
+                'No items found',
                 style: TextStyle(color: Colors.white60, fontSize: 16),
               ),
             ],
@@ -294,7 +322,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Container(
-        width: 800,
+        width: 900,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -327,11 +355,11 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
       ),
       child: Row(
         children: [
-          _buildHeaderCell('ItemName', width: 300),
-          _buildHeaderCell('Qty', width: 30),
-          _buildHeaderCell('Rate', width: 60),
-          _buildHeaderCell('Disc', width: 60),
-          _buildHeaderCell('Amount', width: 130),
+          _buildHeaderCell('Item Name', width: 350),
+          _buildHeaderCell('Qty', width: 80),
+          _buildHeaderCell('Rate', width: 100),
+          _buildHeaderCell('Disc', width: 100),
+          _buildHeaderCell('Amount', width: 150),
         ],
       ),
     );
@@ -347,7 +375,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
           fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
-        textAlign: TextAlign.center,
+        textAlign: title == 'Item Name' ? TextAlign.left : TextAlign.center,
       ),
     );
   }
@@ -364,26 +392,26 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
         children: [
           _buildDataCell(
             item['ItemName']?.toString() ?? 'N/A',
-            width: 300,
-            textAlign: TextAlign.left, // Add this line
+            width: 350,
+            textAlign: TextAlign.left,
           ),
           _buildDataCell(
             _parseQty(item['Qty']).toString(),
-            width: 30,
+            width: 80,
           ),
           _buildDataCell(
             _formatAmount(item['Rate']),
-            width: 60,
+            width: 100,
             isAmount: true,
           ),
           _buildDataCell(
             _formatAmount(item['Discount']),
-            width: 60,
+            width: 100,
             isAmount: true,
           ),
           _buildDataCell(
             _formatAmount(item['Amount']),
-            width: 130,
+            width: 150,
             isAmount: true,
             isTotal: true,
           ),
@@ -420,6 +448,11 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
           _buildSummaryRow('Delivery Charges', _charges),
           const SizedBox(height: 4),
         ],
+        // Discount (total_disc is negative, so display as positive)
+        if (_totalDisc != 0.0) ...[
+          _buildSummaryRow('Discount', _totalDisc.abs(), isDiscount: true),
+          const SizedBox(height: 4),
+        ],
         // Divider before grand total
         Container(
           height: 1,
@@ -432,18 +465,18 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     );
   }
 
-  Widget _buildSummaryRow(String label, double amount, {bool isGrandTotal = false}) {
+  Widget _buildSummaryRow(String label, double amount, {bool isGrandTotal = false, bool isDiscount = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
           // Empty space for ItemName column
-          SizedBox(width: 300),
+          SizedBox(width: 350),
           // Empty space for Qty column
-          SizedBox(width: 30),
+          SizedBox(width: 80),
           // Label spans Rate + Disc columns
           Container(
-            width: 120, // 60 (Rate) + 60 (Disc)
+            width: 200, // 100 (Rate) + 100 (Disc)
             alignment: Alignment.centerRight,
             child: Text(
               '$label:',
@@ -458,12 +491,16 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
           ),
           // Amount in Amount column
           Container(
-            width: 130,
+            width: 150,
             alignment: Alignment.centerRight,
             child: Text(
-              isGrandTotal ? Formatters.formatCurrency(amount) :  _formatAmount(amount),
+              isGrandTotal
+                  ? Formatters.formatCurrency(amount)
+                  : (isDiscount ? '- ${_formatAmount(amount)}' : _formatAmount(amount)),
               style: TextStyle(
-                color: isGrandTotal ? Colors.orange : Colors.white,
+                color: isGrandTotal
+                    ? Colors.orange
+                    : (isDiscount ? Colors.redAccent : Colors.white),
                 fontSize: isGrandTotal ? 16 : 14,
                 fontWeight: FontWeight.w700,
               ),
@@ -479,7 +516,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
         required double width,
         bool isAmount = false,
         bool isTotal = false,
-        TextAlign? textAlign, // Add this parameter
+        TextAlign? textAlign,
       }) {
     return Container(
       width: width,
@@ -494,7 +531,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               ? FontWeight.w700
               : (isAmount ? FontWeight.w600 : FontWeight.w500),
         ),
-        textAlign: textAlign ?? TextAlign.center, // Use provided alignment or default to center
+        textAlign: textAlign ?? TextAlign.center,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),

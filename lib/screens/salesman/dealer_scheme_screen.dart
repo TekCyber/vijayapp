@@ -9,7 +9,6 @@ import '../../utils/formatters.dart';
 import '../../screens/salesman/data_service.dart';
 import '../dealer/menu_navigator.dart';
 
-
 class DealerSchemeScreen extends StatefulWidget {
   final String title; // Dealer name
 
@@ -24,19 +23,20 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
   bool _isLoading = true;
   String _errorMessage = '';
   String? _selectedRoute;
-  String? _selectedScheme;
+  String? _selectedSchemeName;
   int selectedMenuIndex = 0;
-  bool _showAllSchemes = false; // Track if showing all schemes
+  Set<String> _expandedSchemeTypes = {}; // Track expanded scheme type cards
 
   List<String> _routes = [];
-  List<String> _schemes = [];
+  List<String> _schemeNames = ['All Schemes'];
   final DataService _dataService = DataService();
 
   @override
   void initState() {
     super.initState();
+    _selectedSchemeName = _schemeNames.first;
     _fetchRouteList();
-    _fetchSchemeList();
+    _fetchAllSchemeNames(); // Fetch all scheme names first
     _fetchSchemeData();
   }
 
@@ -57,12 +57,12 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
         ),
       ),
       SearchFilterOption(
-        key: 'schemeFilter',
+        key: 'schemeNameFilter',
         widget: BrandDropdownFilter(
-          brands: _schemes,
-          selectedBrand: _selectedScheme,
+          brands: _schemeNames,
+          selectedBrand: _selectedSchemeName,
           label: "Filter by Scheme",
-          onChanged: _onSchemeChanged,
+          onChanged: _onSchemeNameChanged,
         ),
       ),
     ];
@@ -77,17 +77,20 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
     if (newValue != null) {
       setState(() {
         _selectedRoute = newValue;
+        _expandedSchemeTypes.clear();
       });
+      _fetchAllSchemeNames(); // Refresh scheme names based on route
       _fetchSchemeData();
     }
   }
 
-  void _onSchemeChanged(String? newValue) {
+  void _onSchemeNameChanged(String? newValue) {
     if (newValue != null) {
       setState(() {
-        _selectedScheme = newValue;
+        _selectedSchemeName = newValue;
+        _expandedSchemeTypes.clear();
       });
-      _fetchSchemeData();
+      _fetchSchemeData(); // Only fetch data, don't refresh scheme names
     }
   }
 
@@ -104,16 +107,36 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
     }
   }
 
-  Future<void> _fetchSchemeList() async {
+  Future<void> _fetchAllSchemeNames() async {
     try {
-      List<String> schemeList = await _dataService.getAllSchemeNames();
+      // Determine route parameter - use selected route or all routes
+      String routeParam = (_selectedRoute == null || _selectedRoute == 'All Routes')
+          ? '%'
+          : _selectedRoute!;
+
+      // Fetch all schemes for the current route to get scheme name list
+      List<Map<String, dynamic>> allSchemes = await _dataService.getSchemesByExecutiveAndRoute(
+        route: routeParam,
+        schemeName: '%', // Get all scheme names
+      );
+
+      // Extract unique scheme names
+      Set<String> uniqueSchemes = allSchemes
+          .map((e) => e['scheme_name']?.toString() ?? '')
+          .where((name) => name.isNotEmpty)
+          .toSet();
 
       setState(() {
-        _schemes = ['All Schemes', ...schemeList];
-        _selectedScheme = _schemes.isNotEmpty ? _schemes.first : null;
+        _schemeNames = ['All Schemes', ...uniqueSchemes.toList()..sort()];
+        // Reset to "All Schemes" if current selection is not in the new list
+        if (_selectedSchemeName != null &&
+            _selectedSchemeName != 'All Schemes' &&
+            !_schemeNames.contains(_selectedSchemeName)) {
+          _selectedSchemeName = 'All Schemes';
+        }
       });
     } catch (e) {
-      print('Error fetching scheme list: $e');
+      print('Error fetching scheme names: $e');
     }
   }
 
@@ -124,18 +147,17 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
         _errorMessage = '';
       });
 
-      // Determine route and scheme parameters
       String routeParam = (_selectedRoute == null || _selectedRoute == 'All Routes')
           ? '%'
           : _selectedRoute!;
 
-      String schemeParam = (_selectedScheme == null || _selectedScheme == 'All Schemes')
+      String schemeNameParam = (_selectedSchemeName == null || _selectedSchemeName == 'All Schemes')
           ? '%'
-          : _selectedScheme!;
+          : _selectedSchemeName!;
 
-      List<Map<String, dynamic>> fetchedData = await _dataService.getSchemesByExecutive(
+      List<Map<String, dynamic>> fetchedData = await _dataService.getSchemesByExecutiveAndRoute(
         route: routeParam,
-        schemeName: schemeParam,
+        schemeName: schemeNameParam,
       );
 
       setState(() {
@@ -149,6 +171,24 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
       });
       print('Error fetching scheme data: $e');
     }
+  }
+
+  Map<String, List<Map<String, dynamic>>> _groupBySchemeType() {
+    Map<String, List<Map<String, dynamic>>> grouped = {
+      'VALUE': [],
+      'BASKET': [],
+      'QUANTITY': [],
+      'POINTS': [],
+    };
+
+    for (var scheme in _schemeData) {
+      String schemeType = (scheme['scheme_type'] ?? '').toString().toUpperCase();
+      if (grouped.containsKey(schemeType)) {
+        grouped[schemeType]!.add(scheme);
+      }
+    }
+
+    return grouped;
   }
 
   @override
@@ -165,28 +205,11 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
           Column(
             children: [
               SizedBox(height: 16),
-
-              // Show All/Hide button
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    const Spacer(),
-                    _buildShowAllButton(),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Content
               Expanded(
                 child: _buildSchemeContent(),
               ),
             ],
           ),
-
-          // Fixed bottom summary bar
           Positioned(
             left: 0,
             right: 0,
@@ -196,45 +219,6 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildShowAllButton() {
-    List<Map<String, dynamic>> filteredData = _getFilteredData();
-    int totalSchemes = filteredData.length;
-
-    // Only show button if there are more than 5 schemes
-    if (totalSchemes <= 5) {
-      return SizedBox.shrink();
-    }
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _showAllSchemes = !_showAllSchemes;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.blueAccent.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: Colors.blueAccent.withOpacity(0.3),
-            width: 1,
-          ),
-        ),
-        child: Icon(
-          _showAllSchemes ? Icons.remove : Icons.add,
-          color: Colors.white,
-          size: 20,
-        ),
-      ),
-    );
-  }
-
-  List<Map<String, dynamic>> _getFilteredData() {
-    // Data is already filtered by API call based on dropdowns
-    return _schemeData;
   }
 
   Widget _buildSchemeContent() {
@@ -279,9 +263,7 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
       );
     }
 
-    List<Map<String, dynamic>> filteredData = _getFilteredData();
-
-    if (filteredData.isEmpty) {
+    if (_schemeData.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -297,155 +279,354 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
       );
     }
 
-    // Determine how many schemes to show
-    int itemCount = _showAllSchemes ? filteredData.length : (filteredData.length > 5 ? 5 : filteredData.length);
+    Map<String, List<Map<String, dynamic>>> groupedSchemes = _groupBySchemeType();
 
     return RefreshIndicator(
       onRefresh: _fetchSchemeData,
-      child: ListView.builder(
-        padding: EdgeInsets.only(left: 16, right: 16, top: 0, bottom: 100),
-        itemCount: itemCount,
-        itemBuilder: (context, index) {
-          return _buildSchemeCard(filteredData[index]);
-        },
+      child: ListView(
+        padding: EdgeInsets.only(left: 16, right: 16, top: 0, bottom: 140), // Increased bottom padding
+        children: [
+          if (groupedSchemes['VALUE']!.isNotEmpty)
+            _buildSchemeTypeCard('VALUE', groupedSchemes['VALUE']!, Colors.green),
+          if (groupedSchemes['BASKET']!.isNotEmpty)
+            _buildSchemeTypeCard('BASKET', groupedSchemes['BASKET']!, Colors.orange),
+          if (groupedSchemes['QUANTITY']!.isNotEmpty)
+            _buildSchemeTypeCard('QUANTITY', groupedSchemes['QUANTITY']!, Colors.purple),
+          if (groupedSchemes['POINTS']!.isNotEmpty)
+            _buildSchemeTypeCard('POINTS', groupedSchemes['POINTS']!, Colors.blue),
+        ],
       ),
     );
   }
 
-  Widget _buildSchemeCard(Map<String, dynamic> data) {
+  Widget _buildSchemeTypeCard(String schemeType, List<Map<String, dynamic>> schemes, Color color) {
+    bool isExpanded = _expandedSchemeTypes.contains(schemeType);
+    int schemeCount = schemes.length;
+
+    // Calculate total amount for this scheme type
+    double totalAmount = 0.0;
+    for (var scheme in schemes) {
+      var amount = scheme['total_value'];
+      if (amount != null) {
+        if (amount is num) {
+          totalAmount += amount.toDouble();
+        } else if (amount is String) {
+          totalAmount += double.tryParse(amount) ?? 0.0;
+        }
+      }
+    }
+
     return Container(
-      margin: EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Color(0xFF2A3F5F).withOpacity(0.6),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
+          color: color.withOpacity(0.3),
+          width: 2,
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with dealer name and scheme name
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  data['dealername'] ?? '',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () {
+              setState(() {
+                if (isExpanded) {
+                  _expandedSchemeTypes.remove(schemeType);
+                } else {
+                  _expandedSchemeTypes.add(schemeType);
+                }
+              });
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: color.withOpacity(0.5),
+                        width: 1,
+                      ),
+                    ),
+                    child: Icon(
+                      _getSchemeTypeIcon(schemeType),
+                      color: color,
+                      size: 24,
+                    ),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 4),
-                Text(
-                  data['SCHEME_NAME'] ?? '',
-                  style: TextStyle(
-                    color: Colors.blueAccent,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$schemeType SCHEME',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Text(
+                              '$schemeCount Dealers',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Container(
+                              width: 1,
+                              height: 12,
+                              color: Colors.white.withOpacity(0.3),
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              _formatAmount(totalAmount),
+                              style: TextStyle(
+                                color: color,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 4),
-                Text(
-                  '${_formatDate(data['start_date'])} - ${_formatDate(data['end_date'])}',
-                  style: TextStyle(color: Colors.white60, fontSize: 11),
-                ),
-              ],
+                  Container(
+                    padding: EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: color.withOpacity(0.4),
+                        width: 1,
+                      ),
+                    ),
+                    child: Icon(
+                      isExpanded ? Icons.remove : Icons.add,
+                      color: color,
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
             ),
-
-            SizedBox(height: 12),
-
-            // Compact Info Grid
-            Row(
-              children: [
-                Expanded(
-                  child: _buildCompactInfo(
-                    "Total Amount",
-                    _formatAmount(data['TotalAmount']),
-                    Colors.blue,
-                  ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: _buildCompactInfo(
-                    "Current Slab",
-                    data['Current_Slab'] ?? '-',
-                    Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-
-            SizedBox(height: 8),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _buildCompactInfo(
-                    "Eligible CN/Value",
-                    _formatAmount(data['CN/VALUE']),
-                    Colors.green,
-                  ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: _buildCompactInfo(
-                    "Balance to Next",
-                    _formatAmount(data['Amount_To_Next_Slab']),
-                    Colors.purple,
-                  ),
-                ),
-              ],
-            ),
+          ),
+          if (isExpanded) ...[
+            Divider(color: color.withOpacity(0.2), height: 1, thickness: 1),
+            _buildSchemeTable(schemeType, schemes, color),
           ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildCompactInfo(String title, String value, Color color) {
+  IconData _getSchemeTypeIcon(String schemeType) {
+    switch (schemeType) {
+      case 'VALUE':
+        return Icons.account_balance_wallet;
+      case 'BASKET':
+        return Icons.shopping_basket;
+      case 'QUANTITY':
+        return Icons.inventory_2;
+      case 'POINTS':
+        return Icons.stars;
+      default:
+        return Icons.receipt;
+    }
+  }
+
+  Widget _buildSchemeTable(String schemeType, List<Map<String, dynamic>> schemes, Color color) {
     return Container(
-      padding: EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
+      padding: EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
+          // Table Header
+          Container(
+            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Dealer Name',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Amount',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Current',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Next',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
+
+          // Table Rows
+          ...schemes.asMap().entries.map((entry) {
+            int index = entry.key;
+            Map<String, dynamic> scheme = entry.value;
+            bool isLastRow = index == schemes.length - 1;
+
+            return Container(
+              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+              decoration: BoxDecoration(
+                color: index % 2 == 0
+                    ? Colors.white.withOpacity(0.03)
+                    : Colors.transparent,
+                borderRadius: isLastRow
+                    ? BorderRadius.vertical(bottom: Radius.circular(8))
+                    : null,
+                border: Border(
+                  bottom: BorderSide(
+                    color: isLastRow
+                        ? Colors.transparent
+                        : Colors.white.withOpacity(0.05),
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          scheme['party_led'] ?? '',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          scheme['scheme_name'] ?? '',
+                          style: TextStyle(
+                            color: Colors.white60,
+                            fontSize: 10,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      _formatAmount(scheme['total_value']),
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        scheme['current_slab']?.toString() ?? '-',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.cyan.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        scheme['next_slab']?.toString() ?? '-',
+                        style: TextStyle(
+                          color: Colors.cyan,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
         ],
       ),
     );
@@ -470,18 +651,16 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
       value = double.tryParse(amount) ?? 0.0;
     }
 
-    // Use the Formatters utility class
     return Formatters.formatCurrency(value.abs());
   }
 
   Widget _buildBottomSummaryBar() {
-    List<Map<String, dynamic>> filteredData = _getFilteredData();
-    int totalSchemes = filteredData.length;
+    int totalSchemes = _schemeData.length;
 
-    // Calculate total amount
     double totalAmount = 0.0;
-    for (var scheme in filteredData) {
-      var amount = scheme['TotalAmount'];
+
+    for (var scheme in _schemeData) {
+      var amount = scheme['total_value'];
       if (amount != null) {
         if (amount is num) {
           totalAmount += amount.toDouble();
@@ -508,47 +687,89 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
           ),
         ],
       ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(
-              Icons.receipt_long,
-              color: Colors.blueAccent,
-              size: 18,
+            Row(
+              children: [
+                Icon(Icons.receipt_long, color: Colors.blueAccent, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Total: $totalSchemes',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Text(
-              'Total Schemes: $totalSchemes',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 16),
             Container(
               width: 1,
               height: 20,
               color: Colors.white.withOpacity(0.2),
             ),
-            const SizedBox(width: 16),
-            Icon(
-              Icons.account_balance_wallet,
-              color: Colors.green,
-              size: 18,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Amount: ${_formatAmount(totalAmount)}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+            Row(
+              children: [
+                Icon(Icons.account_balance_wallet, color: Colors.green, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  _formatAmount(totalAmount),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSchemeCountBadge(String label, int count, Color color) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(width: 6),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              count.toString(),
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
