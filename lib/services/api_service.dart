@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://app.shrivijaypipecorporation.com/api/v2/data/get';
+  static const String baseUrl = 'http://app.shrivijaypipecorporation.com/api/v3/data/get';
   static const Duration timeoutDuration = Duration(seconds: 60);
 
   // Singleton pattern

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/login_screen.dart';
+import '../screens/user_profile_screen.dart';
 import '../models/search_filter_models.dart';
 
 class NavTopBar extends StatefulWidget implements PreferredSizeWidget {
@@ -154,7 +155,13 @@ class _NavTopBarState extends State<NavTopBar>
                 : SystemUiOverlayStyle.dark,
             leading: GestureDetector(
               onTap: () {
-                HapticFeedback.lightImpact();
+               /* HapticFeedback.lightImpact();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const UserProfileScreen(),
+                  ),
+                );*/
               },
               child: Container(
                 margin: EdgeInsets.all(8),

@@ -1,12 +1,12 @@
 // lib/views/dealer/invoice_detail_screen.dart - THEME-AWARE VERSION
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../utils/formatters.dart';
-import '../../widgets/dashboard_layout.dart';
-import '../../widgets/glass_container.dart';
-import '../../services/api_service.dart';
-import '../../theme/theme_helpers.dart';
-import 'menu_navigator.dart';
+import '../../../utils/formatters.dart';
+import '../../../widgets/dashboard_layout.dart';
+import '../../../widgets/glass_container.dart';
+import '../../../services/api_service.dart';
+import '../../../theme/theme_helpers.dart';
+import '../menu_navigator.dart';
 
 class InvoiceDetailScreen extends StatefulWidget {
   final String invoiceNo;

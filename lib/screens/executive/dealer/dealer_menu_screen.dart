@@ -1,15 +1,16 @@
 // lib/screens/dealer/dealer_menu_screen.dart - THEME-AWARE VERSION
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../widgets/dashboard_layout.dart';
-import '../../widgets/glass_container.dart';
-import '../../theme/theme_helpers.dart';
+import '../../../widgets/dashboard_layout.dart';
+import '../../../widgets/glass_container.dart';
+import '../../../theme/theme_helpers.dart';
 import 'dealer_outstanding_screen.dart';
 import 'dealer_pdc_screen.dart';
 import 'dealer_sales_comparison_screen.dart';
 import 'dealer_scheme_screen.dart';
 import 'invoice_screen.dart';
-import 'menu_navigator.dart';
+import 'pending_orders_screen.dart';
+import '../menu_navigator.dart';
 
 class DealerMenuScreen extends StatefulWidget {
   final String title;
@@ -311,6 +312,13 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
         context,
         MaterialPageRoute(
           builder: (context) => DealerPDCScreen(title: widget.title),
+        ),
+      );
+    } else if (title == "Pending Orders") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PendingOrdersScreen(title: widget.title),
         ),
       );
     } else {

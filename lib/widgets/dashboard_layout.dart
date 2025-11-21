@@ -1,5 +1,6 @@
 // lib/widgets/dashboard_layout.dart
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'nav_top_bar.dart';
 import 'floating_menu.dart';
 import '../models/search_filter_models.dart';
@@ -40,6 +41,8 @@ class _DashboardLayoutState extends State<DashboardLayout>
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
   late int _selectedIndex;
+  bool _showFloatingMenu = true;
+  bool _isCheckingUserType = true;
 
   @override
   void initState() {
@@ -53,6 +56,25 @@ class _DashboardLayoutState extends State<DashboardLayout>
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
     _animationController.forward();
+    _checkUserType();
+  }
+
+  Future<void> _checkUserType() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final typeName = prefs.getString('typeName');
+
+      setState(() {
+        _showFloatingMenu = typeName != 'DEALER';
+        _isCheckingUserType = false;
+      });
+    } catch (e) {
+      // If error occurs, default to showing the menu
+      setState(() {
+        _showFloatingMenu = true;
+        _isCheckingUserType = false;
+      });
+    }
   }
 
   @override
@@ -101,10 +123,12 @@ class _DashboardLayoutState extends State<DashboardLayout>
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingMenu(
+      floatingActionButton: (!_isCheckingUserType && _showFloatingMenu)
+          ? FloatingMenu(
         selectedIndex: _selectedIndex,
         onTabSelected: _onTabSelected,
-      ),
+      )
+          : null,
     );
   }
 }

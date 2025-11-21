@@ -114,6 +114,7 @@ class ThemeHelper {
   static const Color accentPurple = Colors.purple;
   static const Color accentTeal = Colors.teal;
   static const Color accentPink = Color(0xFFEC4899);
+  static const Color accentRed = Colors.redAccent;
 
   // Predefined chart colors (used in dashboard)
   static const List<Color> chartColors = [

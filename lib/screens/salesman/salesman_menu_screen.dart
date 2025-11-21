@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ultra_sales_dashboard/screens/salesman/salesman_scheme_screen.dart';
+import 'package:ultra_sales_dashboard/screens/salesman/salesman_target_screen.dart';
 import '../../widgets/dashboard_layout.dart';
 import '../../widgets/glass_container.dart';
 import '../dealer/menu_navigator.dart';
@@ -359,10 +360,10 @@ class _SalesmanMenuScreenState extends State<SalesmanMenuScreen>
         ),
       );
     } else if (title == "Target") {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Target screen - Coming soon!"),
-          backgroundColor: Colors.blue.withOpacity(0.8),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SalesmanTargetScreen(title : "Target Details "),
         ),
       );
     } else if (title == "Pending Orders") {

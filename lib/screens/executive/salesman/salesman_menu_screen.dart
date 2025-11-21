@@ -1,38 +1,37 @@
-// lib/screens/dealer/dealer_menu_screen.dart - THEME-AWARE VERSION
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../widgets/dashboard_layout.dart';
-import '../../widgets/glass_container.dart';
-import '../../theme/theme_helpers.dart';
-import 'dealer_outstanding_screen.dart';
-import 'dealer_pdc_screen.dart';
-import 'dealer_sales_comparison_screen.dart';
+import 'package:ultra_sales_dashboard/screens/executive/salesman/salesman_target_screen.dart';
+import '../../../widgets/dashboard_layout.dart';
+import '../../../widgets/glass_container.dart';
+import '../menu_navigator.dart';
+import 'cheque_return_screen.dart';
+import 'dealer_count_screen.dart';
+import 'dealer_sales_view.dart';
 import 'dealer_scheme_screen.dart';
-import 'invoice_screen.dart';
-import 'menu_navigator.dart';
+import 'pending_orders_screen.dart';
 
-class DealerMenuScreen extends StatefulWidget {
+class SalesmanMenuScreen extends StatefulWidget {
   final String title;
   final Function(int)? onMenuSelected;
 
-  DealerMenuScreen({required this.title, this.onMenuSelected});
+  SalesmanMenuScreen({required this.title, this.onMenuSelected});
 
   @override
-  _DealerMenuScreenState createState() => _DealerMenuScreenState();
+  _SalesmanMenuScreenState createState() => _SalesmanMenuScreenState();
 }
 
-class _DealerMenuScreenState extends State<DealerMenuScreen>
+class _SalesmanMenuScreenState extends State<SalesmanMenuScreen>
     with TickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
   int selectedMenuIndex = 0;
-  bool _isGridView = true;
+  bool _isGridView = true; // Add view toggle functionality
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: Duration(milliseconds: 800),
+      duration: Duration(milliseconds: 800), // Match DealerMenuScreen timing
       vsync: this,
     );
     _slideAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -47,6 +46,7 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
     super.dispose();
   }
 
+  // Centralized menu navigation
   void _onMenuSelected(int index) {
     setState(() => selectedMenuIndex = index);
     MenuNavigator.handleMenuSelection(context, index);
@@ -55,49 +55,20 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
   @override
   Widget build(BuildContext context) {
     final List<Map<String, dynamic>> menuItems = [
-      {
-        "title": "Sales",
-        "icon": Icons.bar_chart,
-        "color": ThemeHelper.accentBlue,
-        "description": "View sales data & analytics"
-      },
-      {
-        "title": "Scheme",
-        "icon": Icons.card_giftcard,
-        "color": ThemeHelper.accentPurple,
-        "description": "Check available schemes"
-      },
-      {
-        "title": "Outstanding",
-        "icon": Icons.account_balance_wallet,
-        "color": ThemeHelper.errorColor,
-        "description": "Outstanding & aging analysis"
-      },
-      {
-        "title": "Pending Orders",
-        "icon": Icons.assignment_late,
-        "color": ThemeHelper.warningColor,
-        "description": "Track pending orders"
-      },
-      {
-        "title": "PDC",
-        "icon": Icons.event_note,
-        "color": ThemeHelper.successColor,
-        "description": "Post-dated cheques"
-      },
-      {
-        "title": "Invoices",
-        "icon": Icons.receipt_long,
-        "color": ThemeHelper.accentTeal,
-        "description": "Invoice management"
-      },
+      {"title": "Sales", "icon": Icons.trending_up, "color": Colors.green, "description": "View sales performance & trends"},
+      {"title": "Scheme", "icon": Icons.card_giftcard, "color": Colors.purple, "description": "Available schemes & offers"},
+      {"title": "Target", "icon": Icons.track_changes, "color": Colors.blue, "description": "Sales targets & achievements"},
+      {"title": "Pending Orders", "icon": Icons.pending_actions, "color": Colors.orange, "description": "Track pending orders"},
+      {"title": "Dealer Count", "icon": Icons.group, "color": Colors.teal, "description": "Dealer network analytics"},
+      {"title": "Cheque Return", "icon": Icons.assignment_return, "color": Colors.red, "description": "Returned cheque management"},
     ];
 
     return DashboardLayout(
-      title: "Dealer Menu",
-      subtitle: widget.title,
+      title: "Salesman Menu",
+      subtitle: widget.title, // Salesman name as subtitle
       onTabSelected: _onMenuSelected,
       showBackButton: true,
+
       body: SafeArea(
         child: AnimatedBuilder(
           animation: _slideAnimation,
@@ -112,12 +83,13 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // View toggle button (matching DealerMenuScreen)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Container(
                             decoration: BoxDecoration(
-                              color: ThemeHelper.glassBackground(context),
+                              color: Colors.white.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
@@ -134,15 +106,13 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
                                       color: !_isGridView
-                                          ? Theme.of(context).primaryColor.withOpacity(0.8)
+                                          ? Colors.blueAccent.withOpacity(0.8)
                                           : Colors.transparent,
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Icon(
                                       Icons.view_list,
-                                      color: !_isGridView
-                                          ? Colors.white
-                                          : ThemeHelper.subtleTextColor(context),
+                                      color: !_isGridView ? Colors.white : Colors.white60,
                                       size: 18,
                                     ),
                                   ),
@@ -158,15 +128,13 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
                                       color: _isGridView
-                                          ? Theme.of(context).primaryColor.withOpacity(0.8)
+                                          ? Colors.blueAccent.withOpacity(0.8)
                                           : Colors.transparent,
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Icon(
                                       Icons.grid_view,
-                                      color: _isGridView
-                                          ? Colors.white
-                                          : ThemeHelper.subtleTextColor(context),
+                                      color: _isGridView ? Colors.white : Colors.white60,
                                       size: 18,
                                     ),
                                   ),
@@ -179,11 +147,12 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
 
                       const SizedBox(height: 24),
 
+                      // Dynamic content based on view type
                       _isGridView
                           ? _buildGridView(menuItems)
                           : _buildModernMenuGrid(menuItems),
 
-                      const SizedBox(height: 100),
+                      const SizedBox(height: 100), // Bottom padding
                     ],
                   ),
                 ),
@@ -192,9 +161,11 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
           },
         ),
       ),
+
     );
   }
 
+  // Grid view layout
   Widget _buildGridView(List<Map<String, dynamic>> menuItems) {
     int crossAxisCount = MediaQuery.of(context).orientation == Orientation.portrait ? 2 : 4;
 
@@ -211,6 +182,7 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
     );
   }
 
+  // Grid card (consistent with DealerMenuScreen)
   Widget _buildGridCard(String title, IconData icon, Color color) {
     return GestureDetector(
       onTap: () => _handleNavigation(title),
@@ -248,7 +220,7 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: ThemeHelper.textColor(context),
+                  color: Colors.white,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -259,6 +231,7 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
     );
   }
 
+  // List view layout (new addition)
   Widget _buildModernMenuGrid(List<Map<String, dynamic>> menuItems) {
     return Column(
       children: menuItems.map((item) {
@@ -275,54 +248,7 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
     );
   }
 
-  void _handleNavigation(String title) {
-    HapticFeedback.lightImpact();
-
-    if (title == "Sales") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DealerSalesComparisonScreen(title: widget.title),
-        ),
-      );
-    } else if (title == "Outstanding") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DealerOutstandingScreen(title: widget.title),
-        ),
-      );
-    } else if (title == "Invoices") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => InvoiceScreen(dealerName: widget.title),
-        ),
-      );
-    } else if (title == "Scheme") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DealerSchemeScreen(title: widget.title),
-        ),
-      );
-    } else if (title == "PDC") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DealerPDCScreen(title: widget.title),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("$title - Coming Soon"),
-          backgroundColor: Theme.of(context).primaryColor,
-        ),
-      );
-    }
-  }
-
+  // Modern list view card (matching DealerMenuScreen style)
   Widget _buildModernMenuCard(String title, IconData icon, Color color, String description) {
     return GestureDetector(
       onTap: () => _handleNavigation(title),
@@ -331,6 +257,7 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
+              // Icon container with modern styling
               Container(
                 width: 60,
                 height: 60,
@@ -356,10 +283,12 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
 
               const SizedBox(width: 20),
 
+              // Content section
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Title with colored container
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -378,10 +307,11 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
 
                     const SizedBox(height: 8),
 
+                    // Description
                     Text(
                       description,
-                      style: TextStyle(
-                        color: ThemeHelper.subtleTextColor(context),
+                      style: const TextStyle(
+                        color: Colors.white70,
                         fontSize: 14,
                         fontWeight: FontWeight.w400,
                       ),
@@ -390,6 +320,7 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
                 ),
               ),
 
+              // Arrow indicator
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -407,5 +338,60 @@ class _DealerMenuScreenState extends State<DealerMenuScreen>
         ),
       ),
     );
+  }
+
+  // Navigation logic (extracted from original implementation)
+  void _handleNavigation(String title) {
+    HapticFeedback.lightImpact();
+
+    // Navigate to different screens based on menu item
+    if (title == "Sales") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DealerSalesView(),
+        ),
+      );
+    } else if (title == "Scheme") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DealerSchemeScreen(title : "Scheme Reports" ),
+        ),
+      );
+    } else if (title == "Target") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SalesmanTargetScreen(title : "Target Details "),
+        ),
+      );
+    } else if (title == "Pending Orders") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PendingOrdersScreen(title: "Pending Orders"),
+        ),
+      );
+    } else if (title == "Dealer Count") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DealerCountScreen(),
+        ),
+      );
+    } else if (title == "Cheque Return") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChequeReturnScreen(),
+        ),
+      );
+    } else {
+      // Fallback for any other items
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("$title clicked")),
+      );
+    }
   }
 }

@@ -1,13 +1,13 @@
-// lib/views/dealer/dealer_outstanding_screen.dart - THEME-AWARE VERSION
+// lib/views/dealer/dealer_outstanding_screen.dart - THEME-AWARE VERSION WITH CHECKBOXES
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../utils/formatters.dart';
-import '../../widgets/dashboard_layout.dart';
-import '../../widgets/glass_container.dart';
-import '../../services/api_service.dart';
-import '../../theme/theme_helpers.dart';
-import 'menu_navigator.dart';
+import '../../../utils/formatters.dart';
+import '../../../widgets/dashboard_layout.dart';
+import '../../../widgets/glass_container.dart';
+import '../../../services/api_service.dart';
+import '../../../theme/theme_helpers.dart';
+import '../menu_navigator.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -35,6 +35,19 @@ class _DealerOutstandingScreenState extends State<DealerOutstandingScreen> {
   bool _isLoadingAging = true;
   String _errorMessageAging = '';
 
+  // CHECKBOX SELECTION - NEW ADDITION
+  Set<int> _selectedRows = {};
+  double _selectedTotal = 0.0;
+
+  // PDF Summary Box Colors - Customize these as needed
+  static const PdfColor _pdfSummaryBackground = PdfColors.red50;
+  static const PdfColor _pdfSummaryBorder = PdfColors.red700;
+  static const PdfColor _pdfSummaryText = PdfColors.red900;
+
+  // Rupee symbol color in hex format (should match _pdfSummaryText)
+  // Red900 = #7f1d1d, Blue900 = #1e3a8a, etc.
+  static const String _pdfRupeeSymbolColor = '#7f1d1d';  // Matches red900
+
   @override
   void initState() {
     super.initState();
@@ -42,7 +55,61 @@ class _DealerOutstandingScreenState extends State<DealerOutstandingScreen> {
     _fetchAgingData();
   }
 
+  // NEW METHODS FOR CHECKBOX FUNCTIONALITY
+  void _calculateSelectedTotal() {
+    double total = 0.0;
+
+    for (int index in _selectedRows) {
+      if (index < _outstandingData.length) {
+        final row = _outstandingData[index];
+        double pending = double.tryParse(row['Pending']?.toString() ?? '0') ?? 0.0;
+        total += pending;
+      }
+    }
+
+    setState(() {
+      _selectedTotal = total;
+    });
+  }
+
+  void _toggleRowSelection(int index) {
+    setState(() {
+      if (_selectedRows.contains(index)) {
+        _selectedRows.remove(index);
+      } else {
+        _selectedRows.add(index);
+      }
+      _calculateSelectedTotal();
+    });
+  }
+
+  void _clearSelections() {
+    setState(() {
+      _selectedRows.clear();
+      _selectedTotal = 0.0;
+    });
+  }
+
+  void _toggleSelectAll() {
+    setState(() {
+      if (_selectedRows.length == _outstandingData.length) {
+        _selectedRows.clear();
+      } else {
+        _selectedRows = Set.from(List.generate(_outstandingData.length, (index) => index));
+      }
+      _calculateSelectedTotal();
+    });
+  }
+  // END OF NEW CHECKBOX METHODS
+
   Future<void> _downloadPdf() async {
+
+    print('===== PDF GENERATION DEBUG =====');
+    print('_outstandingData.length: ${_outstandingData.length}');
+    print('_selectedRows.length: ${_selectedRows.length}');
+    print('================================');
+
+
     if (_outstandingData.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("No Outstanding data to download")),
@@ -67,318 +134,265 @@ class _DealerOutstandingScreenState extends State<DealerOutstandingScreen> {
 
       final pdf = pw.Document();
 
-      final allColumns = _outstandingData.isNotEmpty ? _outstandingData.first.keys.toList() : [];
-      final columns = allColumns.where((col) =>
-      !col.toLowerCase().contains('cd_reg') &&
-          !col.toLowerCase().contains('cd/reg') &&
-          col.toLowerCase() != 'cd' &&
-          col.toLowerCase() != 'reg'
-      ).toList();
+      // **DEFINE SPECIFIC COLUMNS TO SHOW IN PDF**
+      // Display names for PDF headers
+      final columnHeaders = [
+        'Date',
+        'Invoice No.',  // Changed from 'Ref. No.'
+        'Opening',
+        'Pending',
+        'PostDated',
+        'OnAccount',
+      ];
 
-      if (columns.isEmpty) {
+      // Actual data keys in the data map
+      final dataKeys = [
+        'Date',
+        'Ref. No.',  // This is the actual key in the data
+        'Opening',
+        'Pending',
+        'PostDated',
+        'OnAccount',
+      ];
+
+      // **DETERMINE DATA TO USE - SELECTED OR ALL**
+      List<Map<String, dynamic>> dataToExport;
+      double totalOutstanding;
+
+      if (_selectedRows.isNotEmpty) {
+        // Use only selected rows
+        dataToExport = _selectedRows.map((index) => _outstandingData[index]).toList();
+
+        // Calculate total from selected items' Pending values
+        totalOutstanding = 0.0;
+        for (var row in dataToExport) {
+          double pending = double.tryParse(row['Pending']?.toString() ?? '0') ?? 0.0;
+          totalOutstanding += pending;
+        }
+      } else {
+        // Use all data
+        dataToExport = _outstandingData;
+        totalOutstanding = _calculateTotalOutstanding(); // Use full total
+      }
+
+      // Verify that these columns exist in the data
+      if (dataToExport.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("No data columns found")),
+          SnackBar(content: Text("No data available")),
         );
         return;
       }
 
-      double totalOutstanding = 0;
-      String pendingKey = '';
+      // **Split data into chunks to avoid too many pages**
+      const int rowsPerPage = 15; // Adjusted for fewer columns
+      final int totalPages = (dataToExport.length / rowsPerPage).ceil();
 
-      for (var key in columns) {
-        if (key.toLowerCase().contains('pending')) {
-          pendingKey = key;
-          break;
-        }
-      }
-
-      if (pendingKey.isNotEmpty) {
-        for (var row in _outstandingData) {
-          final val = row[pendingKey];
-          if (val is num) {
-            totalOutstanding += val.toDouble();
-          } else if (val is String) {
-            totalOutstanding += double.tryParse(val.replaceAll(',', '')) ?? 0;
-          }
-        }
-      }
-
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.a4,
-          margin: pw.EdgeInsets.only(top: 100, left: 32, right: 32, bottom: 32),
-
-          header: (context) {
-            return pw.Container(
-              padding: pw.EdgeInsets.only(bottom: 16),
-              decoration: pw.BoxDecoration(
-                border: pw.Border(
-                  bottom: pw.BorderSide(
-                    color: PdfColors.grey400,
-                    width: 1,
-                  ),
-                ),
-              ),
-              child: pw.Column(
+      for (int pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+        final startIndex = pageIndex * rowsPerPage;
+        final endIndex = (startIndex + rowsPerPage).clamp(0, dataToExport.length);
+        final pageData = dataToExport.sublist(startIndex, endIndex);
+        pdf.addPage(
+          pw.Page(
+            pageFormat: PdfPageFormat.a4,
+            margin: pw.EdgeInsets.all(32),
+            build: (context) {
+              return pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Row(
-                    crossAxisAlignment: pw.CrossAxisAlignment.center,
-                    children: [
-                      pw.Image(pw.MemoryImage(logoBytes), width: 50, height: 50),
-                      pw.SizedBox(width: 16),
-                      pw.Expanded(
-                        child: pw.Text(
-                          domainName,
-                          style: pw.TextStyle(font: ttfBold, fontSize: 20),
-                        ),
-                      ),
-                      pw.Text(
-                        'Page ${context.pageNumber}',
-                        style: pw.TextStyle(font: ttf, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  pw.SizedBox(height: 8),
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text(
-                        "Outstanding Report - ${widget.title}",
-                        style: pw.TextStyle(font: ttfBold, fontSize: 16),
-                      ),
-                    ],
-                  ),
-                  pw.SizedBox(height: 4),
-                  pw.Row(
-                    children: [
-                      pw.Text(
-                        "Generated on: ${Formatters.formatDate(DateTime.now())}",
-                        style: pw.TextStyle(font: ttf, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-
-          footer: (context) {
-            return pw.Container(
-              alignment: pw.Alignment.centerRight,
-              margin: pw.EdgeInsets.only(top: 8),
-              child: pw.Text(
-                'Generated by ${domainName}',
-                style: pw.TextStyle(font: ttf, fontSize: 10, color: PdfColors.grey600),
-              ),
-            );
-          },
-
-          build: (context) => [
-            pw.Table(
-              border: pw.TableBorder.all(
-                  color: PdfColors.grey400,
-                  width: 0.8
-              ),
-              columnWidths: {
-                for (int i = 0; i < columns.length; i++)
-                  i: _getColumnWidthForPdf(columns[i])
-              },
-              children: [
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.grey200,
-                  ),
-                  children: columns.map((col) => pw.Padding(
-                    padding: pw.EdgeInsets.all(8),
-                    child: pw.Text(
-                      col,
-                      style: pw.TextStyle(
-                          font: ttfBold,
-                          fontSize: 11
-                      ),
-                      textAlign: pw.TextAlign.center,
-                    ),
-                  )).toList(),
-                ),
-
-                ..._outstandingData.map((row) {
-                  return pw.TableRow(
-                    children: columns.map((col) {
-                      final val = row[col];
-                      return pw.Padding(
-                        padding: pw.EdgeInsets.all(8),
-                        child: _buildPdfCellContentForTable(val, rsBytes, ttf),
-                      );
-                    }).toList(),
-                  );
-                }).toList(),
-
-                if (pendingKey.isNotEmpty && totalOutstanding > 0)
-                  pw.TableRow(
+                  // Header
+                  pw.Container(
+                    padding: pw.EdgeInsets.only(bottom: 16),
                     decoration: pw.BoxDecoration(
-                      color: PdfColors.grey100,
+                      border: pw.Border(
+                        bottom: pw.BorderSide(
+                          color: PdfColors.grey400,
+                          width: 1,
+                        ),
+                      ),
                     ),
-                    children: columns.map((col) {
-                      if (col == pendingKey) {
-                        return pw.Padding(
-                          padding: pw.EdgeInsets.all(8),
-                          child: pw.Row(
-                            mainAxisAlignment: pw.MainAxisAlignment.center,
-                            children: [
-                              pw.Container(
-                                width: 12,
-                                height: 12,
-                                child: pw.Image(
-                                  pw.MemoryImage(rsBytes),
-                                  fit: pw.BoxFit.contain,
-                                ),
-                              ),
-                              pw.SizedBox(width: 4),
-                              pw.Text(
-                                Formatters.formatNumber(totalOutstanding),
-                                style: pw.TextStyle(font: ttfBold, fontSize: 11),
-                              ),
-                            ],
-                          ),
-                        );
-                      } else if (col == columns.first) {
-                        return pw.Padding(
-                          padding: pw.EdgeInsets.all(8),
-                          child: pw.Text(
-                            'TOTAL:',
-                            style: pw.TextStyle(font: ttfBold, fontSize: 11),
-                            textAlign: pw.TextAlign.center,
-                          ),
-                        );
-                      } else {
-                        return pw.Padding(
-                          padding: pw.EdgeInsets.all(8),
-                          child: pw.Text(''),
-                        );
-                      }
-                    }).toList(),
-                  ),
-              ],
-            ),
-
-            pw.SizedBox(height: 16),
-
-            pw.Container(
-              padding: pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.grey400),
-                color: PdfColors.grey50,
-              ),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(
-                    'Total Records: ${_outstandingData.length}',
-                    style: pw.TextStyle(font: ttf, fontSize: 12),
-                  ),
-                  if (totalOutstanding > 0)
-                    pw.Row(
+                    child: pw.Column(
                       children: [
-                        pw.Text(
-                          'Total Outstanding: ',
-                          style: pw.TextStyle(font: ttf, fontSize: 12),
+                        pw.Row(
+                          crossAxisAlignment: pw.CrossAxisAlignment.center,
+                          children: [
+                            pw.Image(pw.MemoryImage(logoBytes), width: 50, height: 50),
+                            pw.SizedBox(width: 16),
+                            pw.Expanded(
+                              child: pw.Text(
+                                domainName,
+                                style: pw.TextStyle(font: ttfBold, fontSize: 20),
+                              ),
+                            ),
+                            pw.Text(
+                              'Page ${pageIndex + 1} of $totalPages',
+                              style: pw.TextStyle(font: ttf, fontSize: 12),
+                            ),
+                          ],
                         ),
-                        pw.Container(
-                          width: 14,
-                          height: 14,
-                          child: pw.Image(
-                            pw.MemoryImage(rsBytes),
-                            fit: pw.BoxFit.contain,
-                          ),
+                        pw.SizedBox(height: 8),
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text(
+                              "Outstanding Report - ${widget.title}",
+                              style: pw.TextStyle(font: ttfBold, fontSize: 16),
+                            ),
+                          ],
                         ),
-                        pw.SizedBox(width: 4),
-                        pw.Text(
-                          Formatters.formatNumber(totalOutstanding),
-                          style: pw.TextStyle(font: ttfBold, fontSize: 12),
+                        pw.SizedBox(height: 4),
+                        pw.Row(
+                          children: [
+                            pw.Text(
+                              "Generated on: ${Formatters.formatDate(DateTime.now())}",
+                              style: pw.TextStyle(font: ttf, fontSize: 12),
+                            ),
+                          ],
                         ),
                       ],
                     ),
+                  ),
+
+                  pw.SizedBox(height: 16),
+
+                  // Total Outstanding Summary Box (only on first page)
+                  if (pageIndex == 0 && totalOutstanding != 0)
+                    pw.Container(
+                      margin: pw.EdgeInsets.only(bottom: 16),
+                      padding: pw.EdgeInsets.all(16),
+                      decoration: pw.BoxDecoration(
+                        color: _pdfSummaryBackground,
+                        border: pw.Border.all(
+                          color: _pdfSummaryBorder,
+                          width: 2,
+                        ),
+                        borderRadius: pw.BorderRadius.circular(8),
+                      ),
+                      child: pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text(
+                            'TOTAL OUTSTANDING',
+                            style: pw.TextStyle(
+                              font: ttfBold,
+                              fontSize: 16,
+                              color: _pdfSummaryText,
+                            ),
+                          ),
+                          pw.Row(
+                            children: [
+                              pw.SvgImage(
+                                svg: '''
+                                <svg width="16" height="16" viewBox="0 0 320 512" xmlns="http://www.w3.org/2000/svg">
+                                  <path fill="$_pdfRupeeSymbolColor" d="M308 96c6.627 0 12-5.373 12-12V44c0-6.627-5.373-12-12-12H12C5.373 32 0 37.373 0 44v40c0 6.627 5.373 12 12 12h85.28c27.308 0 48.261 9.958 60.97 27.252H12c-6.627 0-12 5.373-12 12v40c0 6.627 5.373 12 12 12h158.757c-6.217 36.086-32.961 58.632-74.757 58.632H12c-6.627 0-12 5.373-12 12v53.012c0 3.349 1.4 6.546 3.861 8.818l165.052 152.356a12.001 12.001 0 0 0 8.139 3.182h82.562c10.924 0 16.166-13.408 8.139-20.818L116.871 319.906c76.499-2.34 131.144-53.395 138.318-127.906H308c6.627 0 12-5.373 12-12v-40c0-6.627-5.373-12-12-12h-58.69c-3.486-11.541-8.28-22.246-14.252-32H308z"/>
+                                </svg>
+                              ''',
+                                width: 16,
+                                height: 16,
+                              ),
+                              pw.SizedBox(width: 6),
+                              pw.Text(
+                                Formatters.formatNumber(totalOutstanding),
+                                style: pw.TextStyle(
+                                  font: ttfBold,
+                                  fontSize: 18,
+                                  color: _pdfSummaryText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Data Table for this page
+                  pw.Expanded(
+                    child: pw.Table(
+                      border: pw.TableBorder.all(color: PdfColors.grey300),
+                      columnWidths: {
+                        0: pw.FixedColumnWidth(70),   // Date
+                        1: pw.FixedColumnWidth(90),   // Invoice No.
+                        2: pw.FixedColumnWidth(85),   // Opening
+                        3: pw.FixedColumnWidth(85),   // Pending
+                        4: pw.FixedColumnWidth(85),   // PostDated
+                        5: pw.FixedColumnWidth(85),   // OnAccount
+                      },
+                      children: [
+                        // Header row - using columnHeaders for display
+                        pw.TableRow(
+                          decoration: pw.BoxDecoration(color: PdfColors.grey200),
+                          children: columnHeaders.map((col) {
+                            return pw.Container(
+                              padding: pw.EdgeInsets.all(8),
+                              alignment: pw.Alignment.center,
+                              child: pw.Text(
+                                col,
+                                style: pw.TextStyle(font: ttfBold, fontSize: 10),
+                                textAlign: pw.TextAlign.center,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        // Data rows for this page - using dataKeys to access data
+                        for (var row in pageData)
+                          pw.TableRow(
+                            children: dataKeys.map((key) {
+                              return pw.Container(
+                                padding: pw.EdgeInsets.all(6),
+                                child: _buildPdfCellContent(row[key], ttf),
+                              );
+                            }).toList(),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  // Footer
+                  pw.Container(
+                    alignment: pw.Alignment.centerRight,
+                    margin: pw.EdgeInsets.only(top: 8),
+                    child: pw.Text(
+                      'Generated by ${domainName}',
+                      style: pw.TextStyle(font: ttf, fontSize: 10, color: PdfColors.grey600),
+                    ),
+                  ),
                 ],
-              ),
-            ),
-          ],
-        ),
-      );
+              );
+            },
+          ),
+        );
+      }
 
+
+      // Direct download instead of print dialog
+      final pdfBytes = await pdf.save();
       await Printing.sharePdf(
-        bytes: await pdf.save(),
-        filename: "Outstanding_Report_${widget.title}_${DateTime.now().millisecondsSinceEpoch}.pdf",
+          bytes: pdfBytes,
+          filename: 'outstanding_${_selectedRows.isNotEmpty ? "selected_" : ""}${DateTime.now().millisecondsSinceEpoch}.pdf'
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("PDF generated successfully"),
-          backgroundColor: ThemeHelper.successColor,
-        ),
+        SnackBar(content: Text("PDF downloaded successfully")),
       );
-
     } catch (e) {
-      print('Error generating PDF: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error generating PDF: ${e.toString()}"),
-          backgroundColor: ThemeHelper.errorColor,
-        ),
+        SnackBar(content: Text("Error generating PDF: $e")),
       );
+      print("PDF Error Details: $e");
     }
   }
 
-  pw.Widget _buildPdfCellContentForTable(dynamic val, Uint8List rsBytes, pw.Font ttf) {
+  pw.Widget _buildPdfCellContent(dynamic val, pw.Font ttf) {
     if (val == null) {
-      return pw.Text('', style: pw.TextStyle(font: ttf, fontSize: 10));
+      return pw.Text(
+        '',
+        style: pw.TextStyle(font: ttf, fontSize: 10),
+        textAlign: pw.TextAlign.center,
+      );
     }
 
     if (val is num) {
-      return pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.center,
-        children: [
-          pw.Container(
-            width: 10,
-            height: 10,
-            child: pw.Image(
-              pw.MemoryImage(rsBytes),
-              fit: pw.BoxFit.contain,
-            ),
-          ),
-          pw.SizedBox(width: 3),
-          pw.Text(
-            Formatters.formatNumber(val.toDouble()),
-            style: pw.TextStyle(font: ttf, fontSize: 10),
-          ),
-        ],
-      );
-    }
-
-    if (val is String && double.tryParse(val.replaceAll(',', '')) != null) {
-      double amount = double.parse(val.replaceAll(',', ''));
-      return pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.center,
-        children: [
-          pw.Container(
-            width: 10,
-            height: 10,
-            child: pw.Image(
-              pw.MemoryImage(rsBytes),
-              fit: pw.BoxFit.contain,
-            ),
-          ),
-          pw.SizedBox(width: 3),
-          pw.Text(
-            Formatters.formatNumber(amount),
-            style: pw.TextStyle(font: ttf, fontSize: 10),
-          ),
-        ],
-      );
-    }
-
-    if (val is DateTime) {
       return pw.Text(
-        Formatters.formatDate(val),
+        Formatters.formatNumber(val.toDouble()),
         style: pw.TextStyle(font: ttf, fontSize: 10),
         textAlign: pw.TextAlign.center,
       );
@@ -476,6 +490,9 @@ class _DealerOutstandingScreenState extends State<DealerOutstandingScreen> {
       setState(() {
         _isLoadingOutstanding = true;
         _errorMessageOutstanding = '';
+        // Clear selections when refreshing data
+        _selectedRows.clear();
+        _selectedTotal = 0.0;
       });
 
       SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -512,7 +529,16 @@ class _DealerOutstandingScreenState extends State<DealerOutstandingScreen> {
     }
   }
 
+
   double _calculateTotalOutstanding() {
+    if (_outstandingData.isEmpty) return 0.0;
+
+    // Get TotalOutstanding from the first row (same value in all rows)
+    double totalOutstanding = double.tryParse(_outstandingData.first['TotalOutstanding']?.toString() ?? '0') ?? 0.0;
+
+    return totalOutstanding;
+  }
+  double _calculateTotalOutstanding_old() {
     if (_outstandingData.isEmpty) return 0.0;
 
     double total = 0.0;
@@ -626,7 +652,7 @@ class _DealerOutstandingScreenState extends State<DealerOutstandingScreen> {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
-              'Aging',
+              'Ageing',
               style: TextStyle(
                 color: _currentTabIndex == 1
                     ? ThemeHelper.textColor(context)
@@ -730,19 +756,24 @@ class _DealerOutstandingScreenState extends State<DealerOutstandingScreen> {
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Container(
-        width: 800,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildWideTableHeader(),
-            const SizedBox(height: 8),
-            ..._buildWideOutstandingData(),
-          ],
+    return Column(
+      children: [
+
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Container(
+            width: 840, // Added extra width for checkbox column
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildWideTableHeader(),
+                const SizedBox(height: 8),
+                ..._buildWideOutstandingData(),
+              ],
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -759,6 +790,18 @@ class _DealerOutstandingScreenState extends State<DealerOutstandingScreen> {
       ),
       child: Row(
         children: [
+          // CHECKBOX HEADER - NEW ADDITION
+          Container(
+            width: 40,
+            child: Checkbox(
+              value: _selectedRows.length == _outstandingData.length && _outstandingData.isNotEmpty,
+              onChanged: (bool? value) {
+                _toggleSelectAll();
+              },
+              activeColor: Theme.of(context).primaryColor,
+            ),
+          ),
+          // END OF NEW HEADER
           _buildWideHeaderCell('Date', width: 120),
           _buildWideHeaderCell('Ref No', width: 140),
           _buildWideHeaderCell('Opening', width: 120),
@@ -790,21 +833,39 @@ class _DealerOutstandingScreenState extends State<DealerOutstandingScreen> {
       int index = entry.key;
       Map<String, dynamic> row = entry.value;
       bool isEven = index % 2 == 0;
+      bool isSelected = _selectedRows.contains(index); // NEW
 
-      return _buildWideDataRow(row, isEven);
+      return _buildWideDataRow(row, isEven, index, isSelected); // MODIFIED
     }).toList();
   }
 
-  Widget _buildWideDataRow(Map<String, dynamic> data, bool isEven) {
+  Widget _buildWideDataRow(Map<String, dynamic> data, bool isEven, int index, bool isSelected) { // MODIFIED SIGNATURE
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
       decoration: BoxDecoration(
-        color: ThemeHelper.rowBackground(context, isEven),
+        color: isSelected // NEW - Highlight selected rows
+            ? Theme.of(context).primaryColor.withOpacity(0.15)
+            : ThemeHelper.rowBackground(context, isEven),
         borderRadius: BorderRadius.circular(6),
+        border: isSelected // NEW - Border for selected rows
+            ? Border.all(color: Theme.of(context).primaryColor.withOpacity(0.5), width: 1.5)
+            : null,
       ),
       child: Row(
         children: [
+          // CHECKBOX CELL - NEW ADDITION
+          Container(
+            width: 40,
+            child: Checkbox(
+              value: isSelected,
+              onChanged: (bool? value) {
+                _toggleRowSelection(index);
+              },
+              activeColor: Theme.of(context).primaryColor,
+            ),
+          ),
+          // END OF NEW CELL
           _buildWideDataCell(data['Date']?.toString() ?? 'N/A', width: 120),
           _buildWideDataCell(data['Ref. No.']?.toString() ?? 'N/A', width: 140),
           _buildWideDataCell(
@@ -834,12 +895,13 @@ class _DealerOutstandingScreenState extends State<DealerOutstandingScreen> {
     );
   }
 
-  Widget _buildWideDataCell(String value, {
-    required double width,
-    bool isAmount = false,
-    bool isPending = false,
-    bool isPositive = false,
-  }) {
+  Widget _buildWideDataCell(
+      String value, {
+        required double width,
+        bool isAmount = false,
+        bool isPending = false,
+        bool isPositive = false,
+      }) {
     Color textColor = ThemeHelper.subtleTextColor(context);
 
     if (isPending) {
@@ -875,13 +937,15 @@ class _DealerOutstandingScreenState extends State<DealerOutstandingScreen> {
         child: Row(
           children: [
             Icon(
-              Icons.account_balance_wallet,
-              color: Theme.of(context).primaryColor,
+              _selectedRows.isNotEmpty ? Icons.check_circle : Icons.account_balance_wallet,
+              color: _selectedRows.isNotEmpty
+                  ? Theme.of(context).primaryColor
+                  : Theme.of(context).primaryColor,
               size: 16,
             ),
             const SizedBox(width: 8),
             Text(
-              'Total Outstanding:',
+              _selectedRows.isNotEmpty ? 'Selected Bills:' : 'Total Outstanding:',
               style: TextStyle(
                 color: ThemeHelper.textColor(context),
                 fontSize: 12,
@@ -892,14 +956,38 @@ class _DealerOutstandingScreenState extends State<DealerOutstandingScreen> {
             Text(
               _isLoadingOutstanding
                   ? '...'
-                  : (totalAmount > 0 ? Formatters.formatCurrency(totalAmount) : '₹0.00'),
+                  : (_selectedRows.isNotEmpty
+                  ? '₹' + Formatters.formatNumber   (_selectedTotal)
+                  : (totalAmount > 0 ? ( '₹' + Formatters.formatNumber(totalAmount) ) : '₹0.00')),
               style: TextStyle(
-                color: ThemeHelper.errorColor,
+                color: _selectedRows.isNotEmpty
+                    ? Theme.of(context).primaryColor
+                    : ThemeHelper.errorColor,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(width: 12),
+            if (_selectedRows.isNotEmpty)
+              GestureDetector(
+                onTap: _clearSelections,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: ThemeHelper.glassBackground(context),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: ThemeHelper.borderColor(context),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.refresh,
+                    color: ThemeHelper.textColor(context),
+                    size: 14,
+                  ),
+                ),
+              ),
             GestureDetector(
               onTap: _downloadPdf,
               child: Container(
@@ -1032,7 +1120,7 @@ class _DealerOutstandingScreenState extends State<DealerOutstandingScreen> {
         const SizedBox(height: 16),
 
         Text(
-          'Aging Breakdown',
+          'Ageing Breakdown',
           style: ThemeHelper.bodyStyle(context).copyWith(
             color: ThemeHelper.subtleTextColor(context),
           ),

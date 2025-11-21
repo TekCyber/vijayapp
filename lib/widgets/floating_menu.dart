@@ -29,7 +29,8 @@ class _FloatingMenuState extends State<FloatingMenu> {
         final safePadding = MediaQuery.of(context).padding;
 
         final centerX = (screenSize.width - 60) / 2;
-        final bottomY = screenSize.height - safePadding.bottom - 100;
+        final bottomY = 60.0;
+            //screenSize.height - safePadding.bottom - 500;
 
         setState(() {
           _position = Offset(centerX, bottomY);

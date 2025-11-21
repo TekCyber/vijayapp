@@ -1,14 +1,14 @@
 // lib/screens/salesman/dealer_scheme_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../widgets/dashboard_layout.dart';
-import '../../widgets/common_dropdowns.dart';
-import '../../models/search_filter_models.dart';
-import '../../utils/formatters.dart';
-import '../../theme/theme_helpers.dart';
+import '../../../models/search_filter_models.dart';
+import '../../../theme/theme_helpers.dart';
+import '../../../utils/formatters.dart';
+import '../../../widgets/common_dropdowns.dart';
+import '../../../widgets/dashboard_layout.dart';
+import '../menu_navigator.dart';
+import 'data_service.dart';
 
-import '../../screens/salesman/data_service.dart';
-import '../dealer/menu_navigator.dart';
 
 class DealerSchemeScreen extends StatefulWidget {
   final String title;
@@ -478,7 +478,14 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
                 Expanded(
                   flex: 2,
                   child: Text(
-                    'Amount',
+                    schemeType == 'VALUE'
+                        ? 'Amount'
+                        : schemeType == 'BASKET'
+                        ? 'Achieved'
+                        :  schemeType == 'QUANTITY'
+                        ? 'Achieved'
+                        : 'Earned',
+
                     style: TextStyle(
                       color: textColor,
                       fontSize: 12,
@@ -490,7 +497,7 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
                 Expanded(
                   flex: 2,
                   child: Text(
-                    'Current',
+                    'Current Slab',
                     style: TextStyle(
                       color: textColor,
                       fontSize: 12,
@@ -502,7 +509,7 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
                 Expanded(
                   flex: 2,
                   child: Text(
-                    'Next',
+                    'Balance to Next Slab',
                     style: TextStyle(
                       color: textColor,
                       fontSize: 12,
@@ -569,7 +576,16 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
                   Expanded(
                     flex: 2,
                     child: Text(
-                      _formatAmount(scheme['total_value']),
+
+                      scheme['scheme_type'] == 'VALUE'
+                          ? _formatAmount(scheme['total_value'])
+                          : scheme['scheme_type'] == 'BASKET'
+                          ? scheme['achieved_value'].toString()
+                          :  scheme['scheme_type'] == 'QUANTITY'
+                          ? scheme['total_qty'].toString()
+                          : scheme['total_points'].toString(),
+
+                     // _formatAmount(scheme['total_value']),
                       style: TextStyle(
                         color: color,
                         fontSize: 12,
@@ -589,7 +605,7 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        scheme['current_slab']?.toString() ?? '-',
+                        scheme['current_slab']?.toString() ?? '0.0',
                         style: TextStyle(
                           color: ThemeHelper.warningColor,
                           fontSize: 11,
@@ -611,7 +627,18 @@ class _DealerSchemeScreenState extends State<DealerSchemeScreen> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        scheme['next_slab']?.toString() ?? '-',
+
+
+                        scheme['scheme_type'] == 'VALUE'
+                            ? _formatAmount(scheme['amount_or_points_to_next'])
+                            : (scheme['amount_or_points_to_next']?.toString() ?? '0.0'),
+
+
+
+
+
+
+
                         style: TextStyle(
                           color: ThemeHelper.accentTeal,
                           fontSize: 11,

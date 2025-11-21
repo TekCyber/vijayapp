@@ -21,7 +21,52 @@ class Formatters {
     return isNegative ? '-$formatted' : formatted;
   }
 
+  static String formatCurrencyWithDecimal(double amount,int deci) {
+    bool isNegative = amount < 0;
+    double absAmount = amount.abs();
+
+    String formatted;
+    if (absAmount >= 100000) {
+      formatted = '₹${(absAmount / 100000).toStringAsFixed(deci)}L';
+    } else if (absAmount >= 1000) {
+      formatted = '₹${(absAmount / 1000).toStringAsFixed(deci)}K';
+    } else {
+      formatted = '₹${absAmount.toStringAsFixed(deci)}';
+    }
+
+    return isNegative ? '-$formatted' : formatted;
+  }
+
   static String formatNumber(double number, {int decimals = 2}) {
+    // Split into integer and decimal parts
+    String numberStr = number.toStringAsFixed(decimals);
+    List<String> parts = numberStr.split('.');
+
+    // Format the integer part with Indian number system
+    String integerPart = parts[0];
+
+    if (integerPart.length > 3) {
+      // Get last 3 digits
+      String lastThree = integerPart.substring(integerPart.length - 3);
+      String remaining = integerPart.substring(0, integerPart.length - 3);
+
+      // Format remaining digits in groups of 2
+      remaining = remaining.replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{2})+$)'),
+            (Match m) => '${m[1]},',
+      );
+
+      integerPart = '$remaining,$lastThree';
+    }
+
+    // Return with decimal part if it exists
+    if (decimals > 0 && parts.length > 1) {
+      return '$integerPart.${parts[1]}';
+    }
+
+    return integerPart;
+  }
+  static String formatUSNumber(double number, {int decimals = 2}) {
     // Split into integer and decimal parts
     String numberStr = number.toStringAsFixed(decimals);
     List<String> parts = numberStr.split('.');
